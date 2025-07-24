@@ -129,14 +129,32 @@ jobs:
     if: needs.test.result == 'success'
 
     permissions:
-      contents: read
+      contents: write
       packages: write
       actions: read
       security-events: write
 
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Check Docker secrets availability
+        run: |
+          echo "Checking Docker secrets availability..."
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ DOCKER_USERNAME secret is not available"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "❌ DOCKER_PASSWORD secret is not available"
+            exit 1
+          fi
+          echo "✅ Docker secrets are available"
+          echo "Username: ${{ secrets.DOCKER_USERNAME }}"
 
       - name: Set up JDK
         uses: actions/setup-java@v2
@@ -145,7 +163,11 @@ jobs:
           distribution: 'temurin'
 
       - name: Set Up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
 
       - name: Get version from pom.xml
         id: get_version
@@ -156,25 +178,86 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Using version: $VERSION"
 
+      - name: Get branch name
+        id: get_branch
+        run: |
+          # Handle both regular branches and pull requests
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BRANCH_NAME="pr-${{ github.event.number }}"
+          else
+            BRANCH_NAME="${{ github.ref_name }}"
+          fi
+          
+          # Sanitize branch name for Docker tags (remove invalid characters)
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "SANITIZED_BRANCH=$SANITIZED_BRANCH" >> $GITHUB_ENV
+          echo "Branch: $BRANCH_NAME"
+          echo "Sanitized Branch: $SANITIZED_BRANCH"
+
       - name: Build JAR with version (for Docker context)
         run: |
           cd Blogapp # Navigate into the backend directory
           echo "Building JAR with version: $VERSION"
           mvn clean package -DskipTests
+          ls -la Blogapp/target/
       
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      # Build Docker image for all branches
+      - name: Build Docker Image
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+          SANITIZED_BRANCH: ${{ steps.get_branch.outputs.sanitized_branch }}
+        run: |
+          echo "Building Docker image for branch: $SANITIZED_BRANCH"
+          echo "Version: $VERSION"
+          
+          # Build the image locally (no push)
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg VERSION=$VERSION \
+            --label org.opencontainers.image.version=$VERSION \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --label org.opencontainers.image.branch=$SANITIZED_BRANCH \
+            --cache-from=type=registry,ref=${{ secrets.DOCKER_USERNAME }}/blog-app:latest \
+            --cache-to=type=inline \
+            -t blog-app:$VERSION \
+            -t blog-app:$SANITIZED_BRANCH \
+            -t blog-app:${{ github.sha }} \
+            --load \
+            .
+          
+          echo "✅ Successfully built Docker image locally"
+          echo "📦 Images built:"
+          echo "  - blog-app:$VERSION"
+          echo "  - blog-app:$SANITIZED_BRANCH"
+          echo "  - blog-app:${{ github.sha }}"
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5 # Use v5 for latest features
-        with:
-          context: ./Blogapp # The build context is your backend directory
-          file: ./Blogapp/Dockerfile # Path to your backend Dockerfile
-          push: true # Push the image to the registry
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.VERSION }}
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest
+      - name: Push Docker Image to Registry
+        if: github.ref == 'refs/heads/main'
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          echo "Pushing Docker image to registry (main branch only)"
+          
+          # Configure Docker credentials
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          
+          # Tag and push images
+          docker tag blog-app:$VERSION ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION
+          docker tag blog-app:$VERSION ${{ secrets.DOCKER_USERNAME }}/blog-app:latest
+          docker tag blog-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}
+          
+          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION
+          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}
+          
+          echo "✅ Successfully pushed Docker images to registry"
+          echo "📦 Images pushed:"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:latest"
+          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}"
           
