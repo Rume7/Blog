@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main # Or your default branch, e.g., 'master'
+      - '**'
     paths:
       - 'Blog-app-fe/**' # Trigger only if changes are within the my-blog-frontend directory
       - '.github/workflows/frontend-build.yml' # Also trigger if this workflow file changes
