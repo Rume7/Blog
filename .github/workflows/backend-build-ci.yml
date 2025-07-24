@@ -1,4 +1,5 @@
-name: Blog-App CI/CD Pipeline
+# .github/workflows/backend-build-ci.yml
+name: Backend CI/CD Pipeline
 
 on:
   push:
@@ -85,7 +86,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('Blogapp/pom.xml') }} # Corrected path
           restore-keys: ${{ runner.os }}-m2
 
       - name: Verify PostgreSQL Connection
@@ -110,51 +111,35 @@ jobs:
         if: always()
         with:
           name: test-results
-          path: Blogapp/target/surefire-reports/
+          path: Blogapp/target/surefire-reports/ # Corrected path
 
       - name: Generate coverage report
         run: |
-          cd Blogapp
+          cd Blogapp # Navigate into the backend directory
           mvn jacoco:report
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: ./Blogapp/target/site/jacoco/jacoco.xml
+          file: ./Blogapp/target/site/jacoco/jacoco.xml # Corrected path
 
   Build-and-Deploy:
-    needs: [ analyze, test ]
+    needs: [ analyze, Test ] # CORRECTED: 'Test' (capital T) to match job name
     runs-on: ubuntu-22.04
-    # Build for all branches, but only deploy on main
-    if: needs.test.result == 'success'
+    if: needs.Test.result == 'success' # CORRECTED: 'Test' (capital T) to match job name
 
     permissions:
       contents: write
       packages: write
-      actions: read
       security-events: write
+      actions: read
 
-    env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+    # Removed redundant DOCKER_USERNAME/PASSWORD env block here,
+    # as secrets are accessed directly in steps using ${{ secrets.SECRET_NAME }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Check Docker secrets availability
-        run: |
-          echo "Checking Docker secrets availability..."
-          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
-            echo "❌ DOCKER_USERNAME secret is not available"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
-            echo "❌ DOCKER_PASSWORD secret is not available"
-            exit 1
-          fi
-          echo "✅ Docker secrets are available"
-          echo "Username: ${{ secrets.DOCKER_USERNAME }}"
 
       - name: Set up JDK
         uses: actions/setup-java@v2
@@ -163,11 +148,25 @@ jobs:
           distribution: 'temurin'
 
       - name: Set Up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          driver-opts: |
-            image=moby/buildkit:master
-            network=host
+        uses: docker/setup-buildx-action@v3 # Using v3 for stability and features
+        # Removed 'driver-opts' as 'network=host' is generally not needed for simple builds and can cause issues.
+
+      # --- Check Docker secrets availability ---
+      - name: Check Docker secrets availability
+        run: |
+          echo "Checking Docker secrets availability..."
+          # Access secrets directly to verify
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ Error: DOCKER_USERNAME secret is not available or is empty."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "❌ Error: DOCKER_PASSWORD secret is not available or is empty."
+            exit 1
+          fi
+          echo "✅ Docker secrets are available."
+          # Do NOT echo the password, even if it's a secret.
+          echo "Username: ${{ secrets.DOCKER_USERNAME }}"
 
       - name: Get version from pom.xml
         id: get_version
@@ -175,7 +174,7 @@ jobs:
           cd Blogapp # Navigate into the backend directory
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV # Make VERSION available to subsequent steps
           echo "Using version: $VERSION"
 
       - name: Get branch name
@@ -187,9 +186,10 @@ jobs:
           else
             BRANCH_NAME="${{ github.ref_name }}"
           fi
-          
+
           # Sanitize branch name for Docker tags (remove invalid characters)
-          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          # Replace non-alphanumeric characters (except . and -) with hyphens
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g' | tr '[:upper:]' '[:lower:]')
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
           echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
@@ -201,63 +201,26 @@ jobs:
         run: |
           cd Blogapp # Navigate into the backend directory
           echo "Building JAR with version: $VERSION"
+          # Use 'install' to put the JAR in local .m2 repo, or 'package' if Dockerfile copies it directly from target
           mvn clean package -DskipTests
-          ls -la Blogapp/target/
-      
-      # Build Docker image for all branches
-      - name: Build Docker Image
-        env:
-          VERSION: ${{ steps.get_version.outputs.version }}
-          SANITIZED_BRANCH: ${{ steps.get_branch.outputs.sanitized_branch }}
-        run: |
-          echo "Building Docker image for branch: $SANITIZED_BRANCH"
-          echo "Version: $VERSION"
-          
-          # Build the image locally (no push)
-          docker buildx build \
-            --platform linux/amd64 \
-            --build-arg VERSION=$VERSION \
-            --label org.opencontainers.image.version=$VERSION \
-            --label org.opencontainers.image.revision=${{ github.sha }} \
-            --label org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
-            --label org.opencontainers.image.branch=$SANITIZED_BRANCH \
-            --cache-from=type=registry,ref=${{ secrets.DOCKER_USERNAME }}/blog-app:latest \
-            --cache-to=type=inline \
-            -t blog-app:$VERSION \
-            -t blog-app:$SANITIZED_BRANCH \
-            -t blog-app:${{ github.sha }} \
-            --load \
-            .
-          
-          echo "✅ Successfully built Docker image locally"
-          echo "📦 Images built:"
-          echo "  - blog-app:$VERSION"
-          echo "  - blog-app:$SANITIZED_BRANCH"
-          echo "  - blog-app:${{ github.sha }}"
+          ls -la target/ # List contents of target within Blogapp/
 
-      - name: Push Docker Image to Registry
-        if: github.ref == 'refs/heads/main'
-        env:
-          VERSION: ${{ steps.get_version.outputs.version }}
-        run: |
-          echo "Pushing Docker image to registry (main branch only)"
-          
-          # Configure Docker credentials
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-          
-          # Tag and push images
-          docker tag blog-app:$VERSION ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION
-          docker tag blog-app:$VERSION ${{ secrets.DOCKER_USERNAME }}/blog-app:latest
-          docker tag blog-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}
-          
-          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION
-          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}
-          
-          echo "✅ Successfully pushed Docker images to registry"
-          echo "📦 Images pushed:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:$VERSION"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/blog-app:${{ github.sha }}"
-          
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }} # Correctly using DOCKER_PASSWORD secret
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5 # Using v5 for latest features
+        with:
+          context: ./Blogapp # The build context is your backend directory
+          file: ./Blogapp/Dockerfile # Path to your backend Dockerfile
+          push: true # Push the image to the registry
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.VERSION }}
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.SANITIZED_BRANCH }}
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest # Corrected cache-from tag
+          cache-to: type=inline # Use inline cache for faster builds
