@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { LogIn } from 'lucide-react'; // Assuming you still want this icon in the button
+import { LogIn } from 'lucide-react';
 
 // Login Page
 const LoginPage = ({ onNavigate }) => {
