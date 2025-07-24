@@ -5,10 +5,16 @@ on:
     branches:
       - main          # Full CI/CD for main branch
       - '**'          # CI only for all other branches
+    paths:
+      - 'Blogapp/**'  # Trigger only if changes are within the Blogapp directory
+      - '.github/workflows/backend-build-ci.yml' # Also trigger if this workflow file changes
   pull_request:
     branches:
       - main          # CI only for PRs to main
       - '**'          # CI only for PRs to any branch
+    paths:
+      - 'Blogapp/**'  # Trigger only if changes are within the Blogapp directory
+      - '.github/workflows/backend-build-ci.yml' # Also trigger if this workflow file changes
 
 jobs:
   analyze:
@@ -95,22 +101,26 @@ jobs:
           done
 
       - name: Run Tests
-        run: mvn clean verify -Dspring.testcontainers.reuse.enable=true
+        run: |
+          cd Blogapp # Navigate into the backend directory
+          mvn clean verify -Dspring.testcontainers.reuse.enable=true
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
-          path: target/surefire-reports/
+          path: Blogapp/target/surefire-reports/
 
       - name: Generate coverage report
-        run: mvn jacoco:report
+        run: |
+          cd Blogapp
+          mvn jacoco:report
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: ./target/site/jacoco/jacoco.xml
+          file: ./Blogapp/target/site/jacoco/jacoco.xml
 
   Build-and-Deploy:
     needs: [ analyze, test ]
@@ -119,7 +129,7 @@ jobs:
     if: needs.test.result == 'success'
 
     permissions:
-      contents: write
+      contents: read
       packages: write
       actions: read
       security-events: write
@@ -134,33 +144,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set Up Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          driver-opts: |
-            image=moby/buildkit:master
-            network=host
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Get version from pom.xml
         id: get_version
         run: |
+          cd Blogapp # Navigate into the backend directory
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Using version: $VERSION"
 
-      - name: Build JAR with version
+      - name: Build JAR with version (for Docker context)
         run: |
+          cd Blogapp # Navigate into the backend directory
           echo "Building JAR with version: $VERSION"
           mvn clean package -DskipTests
-          find . -name "*.jar"
 
-      - name: Verify JAR File
-        run: |
-          echo "Verifying JAR file with version: $VERSION"
-          if [ ! -f "blog-service/target/blog-service-$VERSION.jar" ]; then
-            echo "❌ JAR file not found!"
-            find . -name "*.jar"
-            exit 1
-          fi
-          echo "✅ Found JAR file: blog-service/target/blog-service-$VERSION.jar"
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5 # Use v5 for latest features
+        with:
+          context: ./Blogapp # The build context is your backend directory
+          file: ./Blogapp/Dockerfile # Path to your backend Dockerfile
+          push: true # Push the image to the registry
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.VERSION }} # Tag with version from pom.xml
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest # Also tag as latest
+          
