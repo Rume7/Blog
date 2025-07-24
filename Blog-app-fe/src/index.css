@@ -1,0 +1,29 @@
+/* src/index.css */
+
+/* Import Tailwind CSS base styles */
+@tailwind base;
+
+/* Import Tailwind CSS component styles */
+@tailwind components;
+
+/* Import Tailwind CSS utility styles */
+@tailwind utilities;
+
+/* Optional: Import Google Fonts (e.g., Inter and Georgia for Medium-like look) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Georgia:wght@400;700&display=swap');
+
+/* Apply base font styles to the body */
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0; /* Ensure no default body margin */
+  background-color: #f5f5f5; /* Light background for the page */
+}
+
+/* Apply serif font to elements with font-serif class (defined in tailwind.config.js) */
+.font-serif {
+  font-family: 'Georgia', serif;
+}
+
+/* You can add any other global custom CSS here if needed */
