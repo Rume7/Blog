@@ -20,7 +20,7 @@ module.exports = {
     },
   },
   plugins: [
-    // Ensure this plugin is included for line-clamp to work
-    require('@tailwindcss/line-clamp'),
+    // Removed @tailwindcss/line-clamp as it's included by default in Tailwind CSS v3.3+
+    // require('@tailwindcss/line-clamp'), // This line was removed
   ],
 };
