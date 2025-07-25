@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { PlusCircle } from 'lucide-react';
-import { mockPosts } from '../mockData'; // Import mock data
+import { mockPosts } from '../mockData';
 
 // Post Editor Page (for Admin/Author)
 const PostEditor = ({ onNavigate, postId = null }) => {

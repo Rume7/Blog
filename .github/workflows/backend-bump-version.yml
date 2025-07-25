@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'Blogapp/**'  # Trigger only if changes are within the Blogapp directory
+      - '.github/workflows/backend-bump-version.yml' # Also trigger if this workflow file changes
 
 jobs:
   bump-version:

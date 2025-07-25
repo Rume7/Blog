@@ -1,15 +1,12 @@
-import React, { useContext } from 'react'; // Removed useState as searchTerm is now from props
+import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
 import NewsletterSignup from '../components/NewsletterSignup';
-
-// Removed Search import as it's no longer needed here
-import { mockPosts } from '../mockData'; // Import mock data
+import { mockPosts } from '../mockData';
 
 // Post List Component (Home Page)
 const PostList = ({ onNavigate, searchTerm }) => { // searchTerm passed as prop
   const { user } = useContext(AuthContext);
-  // Removed local searchTerm state
 
   const filteredPosts = mockPosts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
