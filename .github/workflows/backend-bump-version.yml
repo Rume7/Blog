@@ -39,7 +39,7 @@ jobs:
         id: bump_version
         run: |
           # Get current version from parent pom.xml
-          CURRENT_PARENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" pom.xml)
+          CURRENT_PARENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" Blogapp/pom.xml)
           echo "Current parent version: $CURRENT_PARENT_VERSION"
 
           # Parse major, minor, patch components
@@ -51,15 +51,10 @@ jobs:
           echo "New version: $NEW_VERSION"
 
           # Update parent pom.xml with the new version
-          sed -i "s|<version>$CURRENT_PARENT_VERSION</version>|<version>$NEW_VERSION</version>|g" pom.xml
+          sed -i "s|<version>$CURRENT_PARENT_VERSION</version>|<version>$NEW_VERSION</version>|g" Blogapp/pom.xml
 
           # Update version in <parent> tag for all module pom.xml files
-          # This iterates through all pom.xml files found in subdirectories
-          # and updates the <version> tag within their <parent> section.
-          # The sed command now uses a range address (/<parent>/,/<\/parent>/)
-          # to limit the substitution to lines between the <parent> and </parent> tags,
-          # making it more robust.
-          find . -name "pom.xml" -not -path "./pom.xml" -exec sed -i "/<parent>/,/<\/parent>/ s|<version>$CURRENT_PARENT_VERSION</version>|<version>$NEW_VERSION</version>|g" {} \;
+          find Blogapp -name "pom.xml" -not -path "Blogapp/pom.xml" -exec sed -i "/<parent>/,/<\/parent>/ s|<version>$CURRENT_PARENT_VERSION</version>|<version>$NEW_VERSION</version>|g" {} \;
 
           # Output the new version for subsequent steps
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
@@ -76,8 +71,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          git add pom.xml # Add the root pom.xml
-          git add */pom.xml # Add all modified module pom.xml files
+          git add Blogapp/pom.xml # Add the parent pom.xml
+          git add Blogapp/*/pom.xml # Add all modified module pom.xml files
           git commit -m "chore: Bump version to $NEW_VERSION [skip ci]"
           git push "https://x-oauth-basic:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
 
@@ -86,5 +81,5 @@ jobs:
         with:
           name: updated-poms
           path: |
-            pom.xml
-            */pom.xml
+            Blogapp/pom.xml
+            Blogapp/*/pom.xml
