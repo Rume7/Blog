@@ -35,7 +35,7 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        sampleResponse = new UserResponse(1L, "user1", "user1@email.com", LocalDateTime.now());
+        sampleResponse = new UserResponse(1L, "user1", "user1@email.com", LocalDateTime.now(), User.UserRole.USER);
         sampleRequest = new UserRequest("user1", "user1@email.com", "pass");
     }
 

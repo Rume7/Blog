@@ -1,6 +1,10 @@
 package com.codehacks.post.controller;
 
+import com.codehacks.post.dto.PostRequest;
+import com.codehacks.post.dto.PostResponse;
+import com.codehacks.post.dto.PostMapper;
 import com.codehacks.post.model.Post;
+import com.codehacks.post.model.PostStatus;
 import com.codehacks.post.service.PostService;
 import com.codehacks.user.User;
 import lombok.RequiredArgsConstructor;
@@ -31,48 +35,45 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    public ResponseEntity<List<Post>> getAllPublishedPosts(@RequestParam(required = false) String query) {
-        List<Post> posts;
+    public ResponseEntity<List<PostResponse>> getAllPublishedPosts(@RequestParam(required = false) String query) {
+        List<PostResponse> posts;
         if (query != null && !query.trim().isEmpty()) {
-            posts = postService.searchPosts(query);
+            posts = postService.searchPosts(query).stream().map(PostMapper.toResponse).toList();
         } else {
-            posts = postService.getAllPublishedPosts();
+            posts = postService.getAllPublishedPosts().stream().map(PostMapper.toResponse).toList();
         }
         return ResponseEntity.ok(posts);
     }
 
     // Get a single post by ID (accessible to all, but draft posts need authorization)
     @GetMapping("/{id}")
-    public ResponseEntity<Post> getPostById(@PathVariable Long id, @AuthenticationPrincipal User currentUser) {
+    public ResponseEntity<PostResponse> getPostById(@PathVariable Long id, @AuthenticationPrincipal User currentUser) {
         Post post = postService.getPostById(id)
                 .orElseThrow(() -> new NoSuchElementException("Post not found with ID: " + id));
 
-        // Logic to restrict draft post access
-//        if (post.getStatus() == PostStatus.DRAFT) {
-//            // Only admin or the author can view draft posts
-//            if (currentUser == null || (!currentUser.getRole().equals(User.UserRole.ADMIN) && !post.getAuthorId().equals(currentUser.getId()))) {
-//                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-//            }
-//        }
-        return ResponseEntity.ok(post);
+        // Enforce draft access logic
+        if (post.getStatus() == PostStatus.DRAFT) {
+            boolean isAdmin = currentUser != null && currentUser.getRole() == User.UserRole.ADMIN;
+            boolean isAuthor = currentUser != null && post.getAuthorId() != null && post.getAuthorId().equals(currentUser.getId());
+            if (!isAdmin && !isAuthor) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        return ResponseEntity.ok(PostMapper.toResponse.apply(post));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Post> createPost(@Valid @RequestBody Post post, @AuthenticationPrincipal User currentUser) {
-        post.setAuthorId(currentUser.getId());
-        Post createdPost = postService.createPost(post);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdPost);
+    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest postRequest, @AuthenticationPrincipal User currentUser) {
+        Post createdPost = postService.createPost(PostMapper.fromRequest.apply(postRequest, currentUser.getId()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(PostMapper.toResponse.apply(createdPost));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @postService.getPostById(#id).orElse(null)?.authorId == authentication.principal.id")
-    public ResponseEntity<Post> updatePost(@PathVariable Long id, @Valid @RequestBody Post post, @AuthenticationPrincipal User currentUser) {
-        // Ensure the authorId is not changed via update, it's set on creation
-        post.setAuthorId(currentUser.getId()); // Ensure the author ID from the request body is ignored or validated
-
-        Post updatedPost = postService.updatePost(id, post);
-        return ResponseEntity.ok(updatedPost);
+    public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest postRequest, @AuthenticationPrincipal User currentUser) {
+        Post updatedPost = postService.updatePost(id, PostMapper.fromRequest.apply(postRequest, currentUser.getId()));
+        return ResponseEntity.ok(PostMapper.toResponse.apply(updatedPost));
     }
 
 

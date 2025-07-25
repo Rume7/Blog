@@ -2,8 +2,9 @@ package com.codehacks.user;
 
 import java.time.LocalDateTime;
 
-record UserResponse(Long id, String username, String email, LocalDateTime createdAt) {
+record UserResponse(Long id, String username, String email, LocalDateTime createdAt, User.UserRole role) {
+
     public static UserResponse fromUser(User user) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getCreatedAt());
+        return new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getCreatedAt(), user.getRole());
     }
 } 

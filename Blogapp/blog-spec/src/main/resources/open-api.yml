@@ -118,6 +118,128 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           description: Unauthorized
+  /api/v1/posts:
+    get:
+      summary: Get all published posts
+      responses:
+        '200':
+          description: List of published posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+    post:
+      summary: Create a new post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostRequest'
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+  /api/v1/posts/{id}:
+    get:
+      summary: Get post by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Post found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '403':
+          description: Forbidden (if draft and not author/admin)
+        '404':
+          description: Post not found
+    put:
+      summary: Update post by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostRequest'
+      responses:
+        '200':
+          description: Post updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '404':
+          description: Post not found
+    delete:
+      summary: Delete post by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Post deleted
+        '404':
+          description: Post not found
+  /api/v1/posts/{id}/clap:
+    post:
+      summary: Clap for a post
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Clapped successfully
+    delete:
+      summary: Unclap for a post
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Unclapped successfully
+  /api/v1/posts/{id}/claps/count:
+    get:
+      summary: Get clap count for a post
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Clap count
+          content:
+            application/json:
+              schema:
+                type: integer
 components:
   schemas:
     UserRequest:
@@ -149,4 +271,70 @@ components:
         - id
         - username
         - email
+        - createdAt
+    PostRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED]
+      required:
+        - title
+        - content
+        - status
+    PostResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED]
+        clapsCount:
+          type: integer
+        authorId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - content
+        - status
+        - clapsCount
+        - authorId
+        - createdAt
+        - updatedAt
+    ClapResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        postId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - postId
         - createdAt

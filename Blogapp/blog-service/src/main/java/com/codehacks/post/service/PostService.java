@@ -7,6 +7,8 @@ import com.codehacks.post.repository.ClapRepository;
 import com.codehacks.post.repository.PostRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,9 +16,15 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+/**
+ * Service for post-related business logic. All methods work with Post entities.
+ * Controllers are responsible for mapping to/from DTOs using PostMapper.
+ */
 @Service
 @RequiredArgsConstructor
 public class PostService {
+
+    private static final Logger log = LoggerFactory.getLogger(PostService.class);
 
     private final PostRepository postRepository;
     private final ClapRepository clapRepository;
@@ -41,13 +49,18 @@ public class PostService {
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
         // Claps count defaults to 0 in entity, no need to set here
-        return postRepository.save(post);
+        Post saved = postRepository.save(post);
+        log.info("Created post with id={} by authorId={}", saved.getId(), saved.getAuthorId());
+        return saved;
     }
 
     @Transactional
     public Post updatePost(Long id, Post updatedPost) {
         Post existingPost = postRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Post not found with ID: " + id));
+                .orElseThrow(() -> {
+                    log.warn("Attempted to update non-existent post with id={}", id);
+                    return new NoSuchElementException("Post not found with ID: " + id);
+                });
 
         existingPost.setTitle(updatedPost.getTitle());
         existingPost.setContent(updatedPost.getContent());
@@ -61,17 +74,21 @@ public class PostService {
         //     existingPost.setPublishedAt(LocalDateTime.now());
         // }
 
-        return postRepository.save(existingPost);
+        Post saved = postRepository.save(existingPost);
+        log.info("Updated post with id={}", saved.getId());
+        return saved;
     }
 
     @Transactional
     public void deletePost(Long id) {
         if (!postRepository.existsById(id)) {
+            log.warn("Attempted to delete non-existent post with id={}", id);
             throw new NoSuchElementException("Post not found with ID: " + id);
         }
         // Optionally delete associated claps first if not using cascade delete
         // clapRepository.deleteByPostId(id); // You'd need to add this method to ClapRepository
         postRepository.deleteById(id);
+        log.info("Deleted post with id={}", id);
     }
 
     // --- Clap Operations ---
@@ -82,6 +99,7 @@ public class PostService {
         Optional<Clap> existingClap = clapRepository.findByUserIdAndPostId(userId, postId);
 
         if (existingClap.isPresent()) {
+            log.warn("User {} already clapped for post {}", userId, postId);
             // User has already clapped, you might throw an exception or just do nothing
             throw new IllegalStateException("User has already clapped for this post.");
         }
@@ -98,12 +116,16 @@ public class PostService {
         // Increment claps count on the post
         post.setClapsCount(post.getClapsCount() + 1);
         postRepository.save(post);
+        log.info("User {} clapped for post {}", userId, postId);
     }
 
     @Transactional
     public void unclapForPost(Long postId, Long userId) {
         Clap existingClap = clapRepository.findByUserIdAndPostId(userId, postId)
-                .orElseThrow(() -> new NoSuchElementException("Clap not found for user on this post."));
+                .orElseThrow(() -> {
+                    log.warn("User {} tried to unclap post {} but no clap exists", userId, postId);
+                    return new NoSuchElementException("Clap not found for user on this post.");
+                });
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NoSuchElementException("Post not found with ID: " + postId));
@@ -113,6 +135,7 @@ public class PostService {
         // Decrement claps count on the post, ensuring it doesn't go below zero
         post.setClapsCount(Math.max(0, post.getClapsCount() - 1));
         postRepository.save(post);
+        log.info("User {} unclapped post {}", userId, postId);
     }
 
     public long getClapCountForPost(long postId) {
