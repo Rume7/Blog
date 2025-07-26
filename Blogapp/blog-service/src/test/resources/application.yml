@@ -1,4 +1,9 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: create-drop 
+      ddl-auto: create-drop
+
+# JWT Configuration
+jwt:
+  secret: YOUR_GENERATED_BASE64_SECRET_KEY_HERE
+# Example: jwt.secret=ASDFGHJKLQWERTYUIOPZXCVBNM1234567890ASDFGHJKLQWERTYUIOPZXCVBNM1234567890

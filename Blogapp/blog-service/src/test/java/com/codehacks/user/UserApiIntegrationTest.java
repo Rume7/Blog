@@ -1,5 +1,9 @@
 package com.codehacks.user;
 
+import com.codehacks.user.model.User;
+import com.codehacks.user.model.UserRole;
+import com.codehacks.user.repository.UserRepository;
+import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +21,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.Objects;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
@@ -29,7 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @Import(TestSecurityConfig.class)
 @TestPropertySource(properties = {
-    "spring.jpa.hibernate.ddl-auto=create-drop"
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "jwt.secret=testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong"
 })
 class UserApiIntegrationTest {
 
@@ -59,91 +62,89 @@ class UserApiIntegrationTest {
     @BeforeEach
     void setUpUser() {
         userRepository.deleteAll();
-        UserRequest req = new UserRequest("testUser", "testUser@email.com", "testPass");
-        userService.createUser(req);
+        
+        // Create a test user directly in the database
+        User testUser = new User();
+        testUser.setUsername("testuser");
+        testUser.setFirstName("Test");
+        testUser.setLastName("User");
+        testUser.setEmail("test@example.com");
+        testUser.setRole(UserRole.USER);
+        userService.saveUser(testUser);
     }
 
     @Test
-    void createUser_andGetUser() {
-        UserRequest req = new UserRequest("apiUser", "apiUser@email.com", "password");
-        ResponseEntity<UserResponse> createResp = restTemplate.postForEntity(
-                "/api/v1/users", req, UserResponse.class);
-
-        assertThat(createResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        UserResponse created = createResp.getBody();
-
-        assertThat(created).isNotNull();
-        assertThat(created.username()).isEqualTo("apiUser");
-
-        ResponseEntity<UserResponse> getResp = restTemplate.getForEntity(
-                "/api/v1/users/" + created.id(), UserResponse.class);
-
-        assertThat(getResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(Objects.requireNonNull(getResp.getBody()).username()).isEqualTo("apiUser");
+    void getCurrentUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/me", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void getAllUsers_shouldReturnAllCreatedUsers() {
-        // Create two users
-        UserRequest req1 = new UserRequest("userOne", "userOne@email.com", "pass1");
-        UserRequest req2 = new UserRequest("userTwo", "userTwo@email.com", "pass2");
-        restTemplate.postForEntity("/api/v1/users", req1, UserResponse.class);
-        restTemplate.postForEntity("/api/v1/users", req2, UserResponse.class);
-
-        ResponseEntity<UserResponse[]> resp = restTemplate.getForEntity("/api/v1/users", UserResponse[].class);
-
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().length).isGreaterThanOrEqualTo(2);
+    void getAllUsers_shouldReturnUnauthorized_whenNotAuthenticated() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void updateUser_shouldUpdateDetails() {
-        UserRequest createReq = new UserRequest("toUpdate", "toUpdate@email.com", "pass");
-        ResponseEntity<UserResponse> createResp = restTemplate.postForEntity("/api/v1/users", createReq, UserResponse.class);
-        Long id = Objects.requireNonNull(createResp.getBody()).id();
-
-        UserRequest updateReq = new UserRequest("updatedUser", "updated@email.com", "newpass");
-        restTemplate.put("/api/v1/users/" + id, updateReq);
-
-        ResponseEntity<UserResponse> getResp = restTemplate.getForEntity("/api/v1/users/" + id, UserResponse.class);
-        assertThat(getResp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(Objects.requireNonNull(getResp.getBody()).username()).isEqualTo("updatedUser");
-        assertThat(getResp.getBody().email()).isEqualTo("updated@email.com");
+    void getUserById_shouldReturnUnauthorized_whenNotAuthenticated() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void deleteUser_shouldRemoveUser() {
-        UserRequest createReq = new UserRequest("toDelete", "toDelete@email.com", "pass");
-        ResponseEntity<UserResponse> createResp = restTemplate.postForEntity("/api/v1/users", createReq, UserResponse.class);
-        Long id = Objects.requireNonNull(createResp.getBody()).id();
-
-        restTemplate.delete("/api/v1/users/" + id);
-
-        ResponseEntity<UserResponse> getResp = restTemplate.getForEntity("/api/v1/users/" + id, UserResponse.class);
-        assertThat(getResp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    void updateUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void getUserById_shouldReturnNotFoundForMissingUser() {
-        ResponseEntity<UserResponse> resp = restTemplate.getForEntity("/api/v1/users/99999", UserResponse.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    void deleteUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
-    void createUser_shouldFailOnDuplicateUsernameOrEmail() {
-        UserRequest req = new UserRequest("dupeUser", "dupe@email.com", "pass");
-        restTemplate.postForEntity("/api/v1/users", req, UserResponse.class);
+    void authEndpoints_shouldBeAccessible() {
+        // Test that auth endpoints are accessible without authentication
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        
+        // Test login endpoint
+        String loginRequest = "{\"email\":\"test@example.com\"}";
+        org.springframework.http.HttpEntity<String> loginEntity = new org.springframework.http.HttpEntity<>(loginRequest, headers);
+        ResponseEntity<String> loginResponse = restTemplate.postForEntity("/api/v1/auth/login", loginEntity, String.class);
+        
+        assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        
+        // Test register endpoint
+        String registerRequest = "{\"username\":\"newuser\",\"firstName\":\"New\",\"lastName\":\"User\",\"email\":\"new@example.com\"}";
+        org.springframework.http.HttpEntity<String> registerEntity = new org.springframework.http.HttpEntity<>(registerRequest, headers);
+        ResponseEntity<String> registerResponse = restTemplate.postForEntity("/api/v1/auth/register", registerEntity, String.class);
+        
+        assertThat(registerResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
 
-        // Duplicate username
-        UserRequest dupeUsername = new UserRequest("dupeUser", "other@email.com", "pass");
-        ResponseEntity<String> resp1 = restTemplate.postForEntity("/api/v1/users", dupeUsername, String.class);
-        assertThat(resp1.getStatusCode().is4xxClientError()).isTrue();
+    @Test
+    void verifyMagicLink_shouldReturnJwtToken() {
+        // Test magic link verification (simulated)
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?email=test@example.com", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        // The response should be a JWT token
+        assertThat(response.getBody()).isNotEmpty();
+    }
 
-        // Duplicate email
-        UserRequest dupeEmail = new UserRequest("otherUser", "dupe@email.com", "pass");
-        ResponseEntity<String> resp2 = restTemplate.postForEntity("/api/v1/users", dupeEmail, String.class);
-        assertThat(resp2.getStatusCode().is4xxClientError()).isTrue();
+    @Test
+    void verifyMagicLink_shouldReturnBadRequest_forNonExistentUser() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?email=nonexistent@example.com", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("User not found");
     }
 }

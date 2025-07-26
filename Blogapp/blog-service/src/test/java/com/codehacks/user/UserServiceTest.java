@@ -1,18 +1,23 @@
 package com.codehacks.user;
 
+import com.codehacks.user.model.User;
+import com.codehacks.user.model.UserRole;
+import com.codehacks.user.repository.UserRepository;
+import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,9 +25,6 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
     
     @InjectMocks
     private UserService userService;
@@ -30,106 +32,180 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        userService = new UserService(userRepository, passwordEncoder);
     }
 
     @Test
-    void createUser_shouldEncodePasswordAndSaveUser() {
-        UserRequest request = new UserRequest("user1", "user1@email.com", "pass");
-        User user = new User();
-        user.setUsername("user1");
-        user.setEmail("user1@email.com");
-        user.setPassword("encoded");
-        when(passwordEncoder.encode("pass")).thenReturn("encoded");
-        when(userRepository.save(any(User.class))).thenReturn(user);
+    void loadUserByUsername_shouldReturnUserDetails_whenUserExists() {
+        // Given
+        String email = "test@example.com";
+        User user = createTestUser(email);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 
-        UserResponse response = userService.createUser(request);
+        // When
+        UserDetails result = userService.loadUserByUsername(email);
 
-        assertThat(response.username()).isEqualTo("user1");
-        assertThat(response.email()).isEqualTo("user1@email.com");
-        verify(passwordEncoder).encode("pass");
-        verify(userRepository).save(any(User.class));
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getUsername()).isEqualTo(email);
+        verify(userRepository).findByEmail(email);
     }
 
     @Test
-    void createUser_shouldThrowIfUsernameExists() {
-        UserRequest request = new UserRequest("user1", "user1@email.com", "pass");
-        when(userRepository.findByUsername("user1")).thenReturn(Optional.of(new User()));
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request));
-        assertThat(ex.getMessage()).isEqualTo("Username already exists");
+    void loadUserByUsername_shouldThrowException_whenUserNotFound() {
+        // Given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThrows(UsernameNotFoundException.class, () -> userService.loadUserByUsername(email));
+        verify(userRepository).findByEmail(email);
     }
 
     @Test
-    void createUser_shouldThrowIfEmailExists() {
-        UserRequest request = new UserRequest("user1", "user1@email.com", "pass");
-        when(userRepository.findByUsername("user1")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("user1@email.com")).thenReturn(Optional.of(new User()));
-        Exception ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request));
-        assertThat(ex.getMessage()).isEqualTo("Email already exists");
+    void findAllUsers_shouldReturnAllUsers() {
+        // Given
+        User user1 = createTestUser("user1@example.com");
+        User user2 = createTestUser("user2@example.com");
+        when(userRepository.findAll()).thenReturn(List.of(user1, user2));
+
+        // When
+        List<User> result = userService.findAllUsers();
+
+        // Then
+        assertThat(result).hasSize(2);
+        assertThat(result).contains(user1, user2);
+        verify(userRepository).findAll();
     }
 
     @Test
-    void getAllUsers_shouldReturnMappedResponses() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("user1");
-        user.setEmail("user1@email.com");
-        when(userRepository.findAll()).thenReturn(List.of(user));
+    void findUserById_shouldReturnUser_whenUserExists() {
+        // Given
+        Long userId = 1L;
+        User user = createTestUser("test@example.com");
+        user.setId(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-        List<UserResponse> users = userService.getAllUsers();
-        assertThat(users).hasSize(1);
-        assertThat(users.get(0).username()).isEqualTo("user1");
-    }
+        // When
+        Optional<User> result = userService.findUserById(userId);
 
-    @Test
-    void getUserById_shouldReturnUserResponseIfFound() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("user1");
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-
-        Optional<UserResponse> result = userService.getUserById(1L);
+        // Then
         assertThat(result).isPresent();
-        assertThat(result.get().username()).isEqualTo("user1");
+        assertThat(result.get().getId()).isEqualTo(userId);
+        verify(userRepository).findById(userId);
     }
 
     @Test
-    void getUserById_shouldReturnEmptyIfNotFound() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-        Optional<UserResponse> result = userService.getUserById(1L);
+    void findUserById_shouldReturnEmpty_whenUserNotFound() {
+        // Given
+        Long userId = 999L;
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // When
+        Optional<User> result = userService.findUserById(userId);
+
+        // Then
         assertThat(result).isEmpty();
+        verify(userRepository).findById(userId);
     }
 
     @Test
-    void updateUser_shouldUpdateAndReturnUserResponse() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("old");
-        user.setEmail("old@email.com");
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(passwordEncoder.encode("newpass")).thenReturn("encoded");
-        when(userRepository.save(any(User.class))).thenReturn(user);
+    void findByEmail_shouldReturnUser_whenUserExists() {
+        // Given
+        String email = "test@example.com";
+        User user = createTestUser(email);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 
-        UserRequest req = new UserRequest("new", "new@email.com", "newpass");
-        Optional<UserResponse> result = userService.updateUser(1L, req);
+        // When
+        Optional<User> result = userService.findByEmail(email);
 
+        // Then
         assertThat(result).isPresent();
-        assertThat(result.get().username()).isEqualTo("new");
-        verify(passwordEncoder).encode("newpass");
-        verify(userRepository).save(user);
+        assertThat(result.get().getEmail()).isEqualTo(email);
+        verify(userRepository).findByEmail(email);
     }
 
     @Test
-    void updateUser_shouldReturnEmptyIfNotFound() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-        UserRequest req = new UserRequest("new", "new@email.com", "newpass");
-        Optional<UserResponse> result = userService.updateUser(1L, req);
+    void findByEmail_shouldReturnEmpty_whenUserNotFound() {
+        // Given
+        String email = "nonexistent@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        // When
+        Optional<User> result = userService.findByEmail(email);
+
+        // Then
         assertThat(result).isEmpty();
+        verify(userRepository).findByEmail(email);
+    }
+
+    @Test
+    void findByUsername_shouldReturnUser_whenUserExists() {
+        // Given
+        String username = "testuser";
+        User user = createTestUser("test@example.com");
+        user.setUsername(username);
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(user));
+
+        // When
+        Optional<User> result = userService.findByUsername(username);
+
+        // Then
+        assertThat(result).isPresent();
+        assertThat(result.get().getDisplayName()).isEqualTo(username); // Use getDisplayName() for the username field
+        verify(userRepository).findByUsername(username);
+    }
+
+    @Test
+    void findByUsername_shouldReturnEmpty_whenUserNotFound() {
+        // Given
+        String username = "nonexistentuser";
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        // When
+        Optional<User> result = userService.findByUsername(username);
+
+        // Then
+        assertThat(result).isEmpty();
+        verify(userRepository).findByUsername(username);
+    }
+
+    @Test
+    void saveUser_shouldSaveAndReturnUser() {
+        // Given
+        User userToSave = createTestUser("test@example.com");
+        User savedUser = createTestUser("test@example.com");
+        savedUser.setId(1L);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        // When
+        User result = userService.saveUser(userToSave);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1L);
+        verify(userRepository).save(userToSave);
     }
 
     @Test
     void deleteUser_shouldCallRepository() {
-        userService.deleteUser(1L);
-        verify(userRepository).deleteById(1L);
+        // Given
+        Long userId = 1L;
+
+        // When
+        userService.deleteUser(userId);
+
+        // Then
+        verify(userRepository).deleteById(userId);
+    }
+
+    private User createTestUser(String email) {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("testuser");
+        user.setFirstName("Test");
+        user.setLastName("User");
+        user.setEmail(email);
+        user.setRole(UserRole.USER);
+        return user;
     }
 } 

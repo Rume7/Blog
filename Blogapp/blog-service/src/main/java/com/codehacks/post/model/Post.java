@@ -34,7 +34,7 @@ public class Post {
     private String content;
 
     @Column(name = "author_id", nullable = false)
-    private Long authorId; // Foreign key to User entity (UUID)
+    private Long authorId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
