@@ -76,6 +76,6 @@ jobs:
           file: ./Blog-app-fe/Dockerfile # Path to your frontend Dockerfile
           push: true # Push the image to the registry
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:${{ env.FRONTEND_VERSION }} # Tag with version from package.json
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:latest # Also tag as latest
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:${{ env.FRONTEND_VERSION }}
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:latest
           
