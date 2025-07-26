@@ -71,7 +71,7 @@ public class PostController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @postService.getPostById(#id).orElse(null)?.authorId == authentication.principal.id")
+    @PreAuthorize("hasRole('ADMIN') or @postService.getPostById(#id).orElse(null)?.authorId == #currentUser.id")
     public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest postRequest,
                                                    @AuthenticationPrincipal User currentUser) {
         Post updatedPost = postService.updatePost(id, PostMapper.fromRequest.apply(postRequest, currentUser.getId()));

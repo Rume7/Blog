@@ -3,3 +3,9 @@ springdoc:
     enabled: true
   swagger-ui:
     url: /open-api.yml
+server:
+  compression:
+    enabled: true
+    mime-types: application/json
+  http2:
+    enabled: true

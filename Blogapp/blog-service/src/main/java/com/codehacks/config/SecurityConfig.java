@@ -46,9 +46,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
                                 "/api/auth/**", // Allow all auth endpoints (login, register, magic link)
-                                "/api/posts", // Allow public access to get all posts (you might refine this)
-                                "/api/posts/{id}", // Allow public access to get single post (refine for drafts)
-                                "/api/posts/{id}/claps/count", // Allow public access to clap count
+                                "/api/v1/posts", // Allow public access to get all posts
+                                "/api/v1/posts/{id}", // Allow public access to get single post (refine for drafts)
+                                "/api/v1/posts/{id}/claps/count", // Allow public access to clap count
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
