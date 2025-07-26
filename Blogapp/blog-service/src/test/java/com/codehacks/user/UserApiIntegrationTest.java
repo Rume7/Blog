@@ -7,21 +7,43 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.context.annotation.Bean;
 
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    classes = {UserApiIntegrationTest.TestConfig.class}
+)
 @Testcontainers
-@Import(TestSecurityConfig.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class UserApiIntegrationTest {
+
+    @EnableAutoConfiguration(exclude = {
+        SecurityAutoConfiguration.class,
+        org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration.class
+    })
+    @ComponentScan(basePackages = "com.codehacks.user")
+    @Import(TestSecurityConfig.class)
+    static class TestConfig {
+
+        @Bean
+        public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
+            return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+        }
+    }
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
@@ -92,7 +114,7 @@ class UserApiIntegrationTest {
     void updateUser_shouldUpdateDetails() {
         UserRequest createReq = new UserRequest("toUpdate", "toUpdate@email.com", "pass");
         ResponseEntity<UserResponse> createResp = restTemplate.postForEntity("/api/v1/users", createReq, UserResponse.class);
-        Long id = createResp.getBody().id();
+        Long id = Objects.requireNonNull(createResp.getBody()).id();
 
         UserRequest updateReq = new UserRequest("updatedUser", "updated@email.com", "newpass");
         restTemplate.put("/api/v1/users/" + id, updateReq);
@@ -137,4 +159,3 @@ class UserApiIntegrationTest {
         assertThat(resp2.getStatusCode().is4xxClientError()).isTrue();
     }
 }
-
