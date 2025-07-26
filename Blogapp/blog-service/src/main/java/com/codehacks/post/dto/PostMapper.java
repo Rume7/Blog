@@ -6,6 +6,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class PostMapper {
+
     // Post -> PostResponse
     public static final Function<Post, PostResponse> toResponse = post -> {
         if (post == null) return null;

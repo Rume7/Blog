@@ -6,7 +6,8 @@ import com.codehacks.post.dto.PostMapper;
 import com.codehacks.post.model.Post;
 import com.codehacks.post.model.PostStatus;
 import com.codehacks.post.service.PostService;
-import com.codehacks.user.User;
+import com.codehacks.user.model.User;
+import com.codehacks.user.model.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +46,6 @@ public class PostController {
         return ResponseEntity.ok(posts);
     }
 
-    // Get a single post by ID (accessible to all, but draft posts need authorization)
     @GetMapping("/{id}")
     public ResponseEntity<PostResponse> getPostById(@PathVariable Long id, @AuthenticationPrincipal User currentUser) {
         Post post = postService.getPostById(id)
@@ -53,7 +53,7 @@ public class PostController {
 
         // Enforce draft access logic
         if (post.getStatus() == PostStatus.DRAFT) {
-            boolean isAdmin = currentUser != null && currentUser.getRole() == User.UserRole.ADMIN;
+            boolean isAdmin = currentUser != null && currentUser.getRole() == UserRole.ADMIN;
             boolean isAuthor = currentUser != null && post.getAuthorId() != null && post.getAuthorId().equals(currentUser.getId());
             if (!isAdmin && !isAuthor) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -64,14 +64,16 @@ public class PostController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest postRequest, @AuthenticationPrincipal User currentUser) {
+    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest postRequest,
+                                                   @AuthenticationPrincipal User currentUser) {
         Post createdPost = postService.createPost(PostMapper.fromRequest.apply(postRequest, currentUser.getId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(PostMapper.toResponse.apply(createdPost));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @postService.getPostById(#id).orElse(null)?.authorId == authentication.principal.id")
-    public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest postRequest, @AuthenticationPrincipal User currentUser) {
+    @PreAuthorize("hasRole('ADMIN') or @postService.getPostById(#id).orElse(null)?.authorId == #currentUser.id")
+    public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest postRequest,
+                                                   @AuthenticationPrincipal User currentUser) {
         Post updatedPost = postService.updatePost(id, PostMapper.fromRequest.apply(postRequest, currentUser.getId()));
         return ResponseEntity.ok(PostMapper.toResponse.apply(updatedPost));
     }

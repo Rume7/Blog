@@ -4,7 +4,7 @@ import com.codehacks.post.model.Clap;
 import java.util.function.Function;
 
 public class ClapMapper {
-    // Clap -> ClapResponse
+
     public static final Function<Clap, ClapResponse> toResponse = clap -> {
         if (clap == null) return null;
         ClapResponse dto = new ClapResponse();

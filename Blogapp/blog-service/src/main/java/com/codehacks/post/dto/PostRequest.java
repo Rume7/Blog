@@ -8,6 +8,7 @@ import lombok.Data;
 
 @Data
 public class PostRequest {
+
     @NotBlank
     @Size(max = 255)
     private String title;
