@@ -1,0 +1,81 @@
+# .github/workflows/frontend-build.yml
+name: Frontend CI Build & Deploy
+
+on:
+  push:
+    branches:
+      - main # Or your default branch, e.g., 'master'
+      - '**'
+    paths:
+      - 'Blog-app-fe/**' # Trigger only if changes are within the my-blog-frontend directory
+      - '.github/workflows/frontend-build.yml' # Also trigger if this workflow file changes
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    permissions:
+      contents: read # Required for checkout
+      packages: write # Required to push Docker images to GitHub Packages (GHCR)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Action to check out your repository code
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4 # Action to set up Node.js environment
+        with:
+          node-version: '18' # Use the Node.js version specified in your Dockerfile or package.json
+
+      - name: Install dependencies
+        run: |
+          cd Blog-app-fe # Navigate into the frontend directory
+          npm ci # Clean install of dependencies (uses package-lock.json)
+        # Add caching for node_modules to speed up subsequent runs
+        # uses: actions/cache@v4
+        # with:
+        #   path: Blog-app-fe/node_modules
+        #   key: ${{ runner.os }}-node-${{ hashFiles('my-blog-frontend/package-lock.json') }}
+        #   restore-keys: |
+        #     ${{ runner.os }}-node-
+
+      - name: Run tests
+        run: |
+          cd Blog-app-fe # Navigate into the frontend directory
+          npm test -- --watchAll=false # Run tests, --watchAll=false prevents hanging in CI
+
+      - name: Build frontend
+        run: |
+          cd Blog-app-fe # Navigate into the frontend directory
+          npm run build # Run the production build command
+      
+      # --- Docker Build and Push Steps ---
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # Use v3 for latest features and stability
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          cd Blog-app-fe # Navigate into the frontend directory
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "FRONTEND_VERSION=$VERSION" >> $GITHUB_ENV # Make VERSION available to subsequent steps
+          echo "Using frontend version: $VERSION"
+
+      - name: Login to Docker Hub
+        # You can change this to 'ghcr.io' if using GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5 # Use v5 for latest features
+        with:
+          context: ./Blog-app-fe # The build context is your frontend directory
+          file: ./Blog-app-fe/Dockerfile # Path to your frontend Dockerfile
+          push: true # Push the image to the registry
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:${{ env.FRONTEND_VERSION }} # Tag with version from package.json
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-frontend:latest # Also tag as latest
+          

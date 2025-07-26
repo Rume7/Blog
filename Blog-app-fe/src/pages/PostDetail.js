@@ -1,8 +1,8 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { User, Heart, MessageSquare, Trash2, Edit } from 'lucide-react';
-import { mockPosts } from '../mockData'; // Import mock data
-import RecentPostsSidebar from '../components/RecentPostsSidebar'; // Import the new sidebar component
+import { mockPosts } from '../mockData';
+import RecentPostsSidebar from '../components/RecentPostsSidebar';
 
 // Post Detail Component
 const PostDetail = ({ postId, onNavigate }) => {

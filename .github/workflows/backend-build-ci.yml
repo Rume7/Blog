@@ -1,0 +1,225 @@
+# .github/workflows/backend-build-ci.yml
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main          # Full CI/CD for main branch
+      - '**'          # CI only for all other branches
+    paths:
+      - 'Blogapp/**'  # Trigger only if changes are within the Blogapp directory
+      - '.github/workflows/backend-build-ci.yml' # Also trigger if this workflow file changes
+  pull_request:
+    branches:
+      - main          # CI only for PRs to main
+      - '**'          # CI only for PRs to any branch
+    paths:
+      - 'Blogapp/**'  # Trigger only if changes are within the Blogapp directory
+      - '.github/workflows/backend-build-ci.yml' # Also trigger if this workflow file changes
+
+jobs:
+  analyze:
+    name: CodeQL ${{ matrix.language }} Analysis
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      security-events: write
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  Test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      TESTCONTAINERS_RYUK_DISABLED: true
+      TESTCONTAINERS_CHECKS_DISABLE: true
+      TESTCONTAINERS_REUSE_ENABLE: true
+      SPRING_PROFILES_ACTIVE: test
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: blog_test_db
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('Blogapp/pom.xml') }} # Corrected path
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Verify PostgreSQL Connection
+        run: |
+          sudo apt-get install -y postgresql-client
+          for i in {1..10}; do
+            if PGPASSWORD=test psql -h localhost -U test -d blog_test_db -c "SELECT version();" > /dev/null 2>&1; then
+              echo "✅ PostgreSQL is ready!"
+              break
+            fi
+            echo "⏳ Waiting for PostgreSQL to be ready... ($i/10)"
+            sleep 5
+          done
+
+      - name: Run Tests
+        run: |
+          cd Blogapp # Navigate into the backend directory
+          mvn clean verify -Dspring.testcontainers.reuse.enable=true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: Blogapp/target/surefire-reports/ # Corrected path
+
+      - name: Generate coverage report
+        run: |
+          cd Blogapp # Navigate into the backend directory
+          mvn jacoco:report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./Blogapp/target/site/jacoco/jacoco.xml # Corrected path
+
+  Build-and-Deploy:
+    needs: [ analyze, Test ] # CORRECTED: 'Test' (capital T) to match job name
+    runs-on: ubuntu-22.04
+    if: needs.Test.result == 'success' # CORRECTED: 'Test' (capital T) to match job name
+
+    permissions:
+      contents: write
+      packages: write
+      security-events: write
+      actions: read
+
+    # Removed redundant DOCKER_USERNAME/PASSWORD env block here,
+    # as secrets are accessed directly in steps using ${{ secrets.SECRET_NAME }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # Using v3 for stability and features
+        # Removed 'driver-opts' as 'network=host' is generally not needed for simple builds and can cause issues.
+
+      # --- Check Docker secrets availability ---
+      - name: Check Docker secrets availability
+        run: |
+          echo "Checking Docker secrets availability..."
+          # Access secrets directly to verify
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ]; then
+            echo "❌ Error: DOCKER_USERNAME secret is not available or is empty."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "❌ Error: DOCKER_PASSWORD secret is not available or is empty."
+            exit 1
+          fi
+          echo "✅ Docker secrets are available."
+          # Do NOT echo the password, even if it's a secret.
+          echo "Username: ${{ secrets.DOCKER_USERNAME }}"
+
+      - name: Get version from pom.xml
+        id: get_version
+        run: |
+          cd Blogapp # Navigate into the backend directory
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV # Make VERSION available to subsequent steps
+          echo "Using version: $VERSION"
+
+      - name: Get branch name
+        id: get_branch
+        run: |
+          # Handle both regular branches and pull requests
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BRANCH_NAME="pr-${{ github.event.number }}"
+          else
+            BRANCH_NAME="${{ github.ref_name }}"
+          fi
+
+          # Sanitize branch name for Docker tags (remove invalid characters)
+          # Replace non-alphanumeric characters (except . and -) with hyphens
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g' | tr '[:upper:]' '[:lower:]')
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "SANITIZED_BRANCH=$SANITIZED_BRANCH" >> $GITHUB_ENV
+          echo "Branch: $BRANCH_NAME"
+          echo "Sanitized Branch: $SANITIZED_BRANCH"
+
+      - name: Build JAR with version (for Docker context)
+        run: |
+          cd Blogapp # Navigate into the backend directory
+          echo "Building JAR with version: $VERSION"
+          # Use 'install' to put the JAR in local .m2 repo, or 'package' if Dockerfile copies it directly from target
+          mvn clean package -DskipTests
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }} # Correctly using DOCKER_PASSWORD secret
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5 # Using v5 for latest features
+        with:
+          context: ./Blogapp # The build context is your backend directory
+          file: ./Blogapp/Dockerfile # Path to your backend Dockerfile
+          push: true # Push the image to the registry
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.VERSION }}
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.SANITIZED_BRANCH }}
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest
+            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest # Corrected cache-from tag
+          cache-to: type=inline # Use inline cache for faster builds

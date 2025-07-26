@@ -136,4 +136,5 @@ class UserApiIntegrationTest {
         ResponseEntity<String> resp2 = restTemplate.postForEntity("/api/v1/users", dupeEmail, String.class);
         assertThat(resp2.getStatusCode().is4xxClientError()).isTrue();
     }
-} 
+}
+
