@@ -5,7 +5,7 @@ metadata:
   labels:
     app: blogapp-frontend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: blogapp-frontend
@@ -14,9 +14,11 @@ spec:
       labels:
         app: blogapp-frontend
     spec:
+      imagePullSecrets:
+        - name: my-docker-credentials
       containers:
         - name: blogapp-frontend-container
-          image: blogapp-frontend:latest
+          image: docker.io/rume7/blogapp-frontend:latest
           ports:
             - containerPort: 80
           env:
