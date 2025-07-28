@@ -18,7 +18,7 @@ spec:
         - name: my-docker-credentials
       containers:
         - name: blogapp-backend-container
-          image: blogapp-backend:latest
+          image: docker.io/rume7/blogapp-backend:latest
           ports:
             - containerPort: 8080
           env:
