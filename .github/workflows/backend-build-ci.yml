@@ -217,8 +217,6 @@ jobs:
           file: ./Blogapp/Dockerfile # Path to your backend Dockerfile
           push: true # Push the image to the registry
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.VERSION }}
-            ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ env.SANITIZED_BRANCH }}
             ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest
             ${{ secrets.DOCKER_USERNAME }}/blogapp-backend:${{ github.sha }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/blogapp-backend:latest # Corrected cache-from tag
