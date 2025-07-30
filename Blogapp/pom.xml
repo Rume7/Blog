@@ -17,7 +17,6 @@
     <description>Blog Project for Spring Boot</description>
 
     <modules>
-        <module>blog-contract</module>
         <module>blog-service</module>
         <module>blog-spec</module>
     </modules>
