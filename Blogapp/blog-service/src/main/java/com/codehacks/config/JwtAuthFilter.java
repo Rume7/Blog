@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -47,7 +49,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             userEmail = jwtService.extractUsername(jwt);
         } catch (Exception e) {
             // Log the exception (e.g., token expired, malformed)
-            System.err.println("JWT extraction failed: " + e.getMessage());
+            log.warn("JWT extraction failed: {}", e.getMessage());
             // Optionally, set response status to 401 or 403 here if you want to explicitly reject
             // response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             filterChain.doFilter(request, response); // Continue filter chain, let other handlers deal with it
@@ -73,7 +75,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 // Set the Authentication object in the SecurityContext
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             } else {
-                System.err.println("JWT token is invalid for user: " + userEmail);
+                log.warn("JWT token is invalid for user: {}", userEmail);
             }
         }
         filterChain.doFilter(request, response); // Continue to the next filter in the chain

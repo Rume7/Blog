@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in to BlogApp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 20px;
+            color: #333;
+            margin: 0;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .message {
+            font-size: 14px;
+            margin-bottom: 25px;
+            color: #666;
+        }
+        .magic-link {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        .magic-link:hover {
+            background-color: #0056b3;
+        }
+        .security-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .warning {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #721c24;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #999;
+        }
+        .url-text {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">📝 BlogApp</div>
+            <h1 class="title">Sign in to Your Account</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Hello {{username}},
+            </div>
+            
+            <div class="message">
+                You requested a magic link to sign in to your BlogApp account. Click the button below to securely access your account:
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{magicLinkUrl}}" class="magic-link">
+                    🔐 Sign in to BlogApp
+                </a>
+            </div>
+            
+            <div class="security-notice">
+                <strong>⏰ Security Notice:</strong> This link will expire in 15 minutes and can only be used once.
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Important:</strong> If you didn't request this sign-in link, please ignore this email.
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <p style="font-size: 14px; color: #666;">
+                    <strong>Alternative:</strong> If the button doesn't work, copy and paste this link:
+                </p>
+                <div class="url-text">
+                    {{magicLinkUrl}}
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>BlogApp Team</strong></p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>© 2024 Blog. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> 

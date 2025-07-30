@@ -3,6 +3,120 @@ springdoc:
     enabled: true
   swagger-ui:
     url: /open-api.yml
+
+# Email Configuration
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+    test-connection: false
+  
+  # Redis Configuration for Caching
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+  
+  # JPA Configuration with Query Caching
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:update}
+    show-sql: ${SHOW_SQL:false}
+    properties:
+      hibernate:
+        # Query caching
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        # Connection pool optimization
+        connection:
+          provider_disables_autocommit: true
+        # Batch processing
+        jdbc:
+          batch_size: 20
+          batch_versioned_data: true
+        # Query optimization
+        order_inserts: true
+        order_updates: true
+        # Statistics for monitoring
+        generate_statistics: ${GENERATE_STATISTICS:false}
+  
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000 # 10 minutes default
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "blogapp:"
+
+# Application Configuration
+app:
+  magic-link:
+    base-url: ${MAGIC_LINK_BASE_URL:http://localhost:3000}
+    expiration-minutes: ${MAGIC_LINK_EXPIRATION_MINUTES:15}
+  
+  # Email Service Configuration
+  email-service:
+    base-url: ${EMAIL_SERVICE_BASE_URL:http://localhost:8081}
+  
+  # Cache Configuration
+  cache:
+    # User cache settings
+    user:
+      ttl: 300000 # 5 minutes
+      max-size: 1000
+    # Post cache settings  
+    post:
+      ttl: 600000 # 10 minutes
+      max-size: 500
+    # Clap cache settings
+    clap:
+      ttl: 300000 # 5 minutes
+      max-size: 2000
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,caches
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    info:
+      enabled: true
+    caches:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
+
 server:
   compression:
     enabled: true

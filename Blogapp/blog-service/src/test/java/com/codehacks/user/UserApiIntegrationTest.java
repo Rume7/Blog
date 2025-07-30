@@ -1,5 +1,7 @@
 package com.codehacks.user;
 
+import com.codehacks.email.client.EmailServiceClient;
+import com.codehacks.email.dto.MagicLinkEmailRequest;
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
 import com.codehacks.user.repository.UserRepository;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
@@ -16,39 +19,63 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-@Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
+@Testcontainers
 @Import(TestSecurityConfig.class)
-@TestPropertySource(properties = {
-    "spring.jpa.hibernate.ddl-auto=create-drop",
-    "jwt.secret=testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong"
-})
 class UserApiIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
-            .withDatabaseName("userTestDB")
+            .withDatabaseName("blog_test")
             .withUsername("test")
             .withPassword("test")
             .withReuse(true);
 
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
+
     @DynamicPropertySource
     static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        
+        // Redis configuration
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("spring.data.redis.enabled", () -> "true");
+        
+        // JWT configuration for tests
+        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
+        registry.add("jwt.expiration", () -> "86400000");
+        
+        // Magic link configuration for tests
+        registry.add("app.magic-link.base-url", () -> "http://localhost:3000");
+        registry.add("app.magic-link.expiration-minutes", () -> "15");
+        
+        // Email service configuration for tests
+        registry.add("app.email-service.base-url", () -> "http://localhost:8081");
     }
+
+
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -59,9 +86,20 @@ class UserApiIntegrationTest {
     @Autowired
     private UserService userService;
 
+    @MockBean
+    private EmailServiceClient emailServiceClient;
+
     @BeforeEach
     void setUpUser() {
         userRepository.deleteAll();
+        
+        // Configure mock behavior for EmailServiceClient
+        when(emailServiceClient.validateMagicLinkToken("invalid-token")).thenReturn(false);
+        when(emailServiceClient.validateMagicLinkToken("token-for-nonexistent-user")).thenReturn(true);
+        when(emailServiceClient.getEmailFromToken("token-for-nonexistent-user")).thenReturn("nonexistent@example.com");
+        when(emailServiceClient.validateMagicLinkToken("valid-token")).thenReturn(true);
+        when(emailServiceClient.getEmailFromToken("valid-token")).thenReturn("test@example.com");
+        doNothing().when(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
         
         // Create a test user directly in the database
         User testUser = new User();
@@ -74,38 +112,38 @@ class UserApiIntegrationTest {
     }
 
     @Test
-    void getCurrentUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getCurrentUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/me", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void getAllUsers_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getAllUsers_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void getUserById_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getUserById_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void updateUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void updateUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void deleteUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void deleteUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -130,9 +168,18 @@ class UserApiIntegrationTest {
     }
 
     @Test
+    void verifyMagicLink_shouldReturnBadRequest_forInvalidToken() {
+        // Test magic link verification with invalid token
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?token=invalid-token", String.class);
+        
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("Invalid or expired magic link token");
+    }
+
+    @Test
     void verifyMagicLink_shouldReturnJwtToken() {
         // Test magic link verification (simulated)
-        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?email=test@example.com", String.class);
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?token=valid-token", String.class);
         
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -142,7 +189,8 @@ class UserApiIntegrationTest {
 
     @Test
     void verifyMagicLink_shouldReturnBadRequest_forNonExistentUser() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?email=nonexistent@example.com", String.class);
+        // Test magic link verification with token for non-existent user
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/auth/verify-magic-link?token=token-for-nonexistent-user", String.class);
         
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("User not found");

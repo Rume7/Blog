@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +25,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "blog_users")
+@Table(name = "blog_users", indexes = {
+    @Index(name = "idx_user_email", columnList = "email"),
+    @Index(name = "idx_user_username", columnList = "username"),
+    @Index(name = "idx_user_role", columnList = "role")
+})
 public class User implements UserDetails {
 
     @Id
@@ -70,6 +75,13 @@ public class User implements UserDetails {
     }
 
     public String getDisplayName() {
+        return this.username;
+    }
+
+    /**
+     * Get the actual username field value (not the email-based username for Spring Security)
+     */
+    public String getActualUsername() {
         return this.username;
     }
 

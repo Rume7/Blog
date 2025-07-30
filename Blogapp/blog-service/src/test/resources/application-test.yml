@@ -1,0 +1,58 @@
+# Test Configuration
+spring:
+  application:
+    name: blog-service-test
+  
+  # Testcontainers will provide the datasource configuration
+  # The actual connection details will be injected by Testcontainers
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  # Disable email sending in tests
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+    test-connection: false
+
+  # Redis configuration for tests (will be overridden by Testcontainers)
+  cache:
+    type: redis
+  data:
+    redis:
+      enabled: true
+      host: localhost
+      port: 6379
+
+# JWT Configuration for tests
+jwt:
+  secret: testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong
+  expiration: 86400000
+
+# Magic Link Configuration for tests
+app:
+  magic-link:
+    base-url: http://localhost:3000
+    expiration-minutes: 15
+
+# Logging Configuration for tests
+logging:
+  level:
+    com.codehacks: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n" 

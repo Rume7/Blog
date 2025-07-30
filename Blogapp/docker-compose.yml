@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16.8-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: blog_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Expose for local development/debugging
+
+  backend:
+    build:
+      context: ./Blogapp # Assuming your Spring Boot project is in a 'backend' folder
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/blog_db
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update # Or validate/none for production
+      JWT_SECRET: your_very_secret_jwt_key_that_is_at_least_256_bits_long
+      SPRING_MAIL_HOST: smtp.example.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: your_email@example.com
+      SPRING_MAIL_PASSWORD: your_email_password
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
+      FRONTEND_URL: http://localhost:3000 # Or your deployed frontend URL
+    depends_on:
+      - db
+    restart: always
+
+  frontend: # New frontend service
+    build:
+      context: ./Blog-app-fe # Path to your React project root
+      dockerfile: Dockerfile # Refers to the Dockerfile you just created
+    ports:
+      - "3000:80" # Map host port 3000 to container port 80 (Nginx default)
+    depends_on:
+      - backend # Frontend depends on backend for API calls, though not strictly for serving
+    restart: always
+
+volumes:
+  postgres_data:

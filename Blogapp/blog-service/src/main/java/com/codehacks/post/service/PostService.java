@@ -9,6 +9,10 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,22 +33,34 @@ public class PostService {
     private final PostRepository postRepository;
     private final ClapRepository clapRepository;
 
-
+    @Cacheable(value = "posts", key = "'published'")
     public List<Post> getAllPublishedPosts() {
+        log.debug("Loading all published posts");
         return postRepository.findByStatus(PostStatus.PUBLISHED);
     }
 
+    @Cacheable(value = "posts", key = "'search:' + #query")
     public List<Post> searchPosts(String query) {
+        log.debug("Searching posts with query: {}", query);
         // In a real scenario, you might want to search only PUBLISHED posts
         // For simplicity, this searches all posts
         return postRepository.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(query, query);
     }
 
+    @Cacheable(value = "posts", key = "#id")
     public Optional<Post> getPostById(Long id) {
+        log.debug("Loading post by ID: {}", id);
         return postRepository.findById(id);
     }
 
     @Transactional
+    @Caching(
+        put = @CachePut(value = "posts", key = "#result.id"),
+        evict = {
+            @CacheEvict(value = "posts", key = "'published'"),
+            @CacheEvict(value = "posts", key = "'search:*'", allEntries = true)
+        }
+    )
     public Post createPost(Post post) {
         post.setCreatedAt(LocalDateTime.now());
         post.setUpdatedAt(LocalDateTime.now());
@@ -55,6 +71,13 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(
+        put = @CachePut(value = "posts", key = "#id"),
+        evict = {
+            @CacheEvict(value = "posts", key = "'published'"),
+            @CacheEvict(value = "posts", key = "'search:*'", allEntries = true)
+        }
+    )
     public Post updatePost(Long id, Post updatedPost) {
         Post existingPost = postRepository.findById(id)
                 .orElseThrow(() -> {
@@ -68,25 +91,27 @@ public class PostService {
         existingPost.setStatus(updatedPost.getStatus());
         existingPost.setUpdatedAt(LocalDateTime.now());
 
-        // If status changes to PUBLISHED, set publishedAt (if you add this field to Post)
-        // For now, we only have createdAt/updatedAt. If you need a distinct 'publishedAt', add it to Post model.
-        // if (updatedPost.getStatus() == PostStatus.PUBLISHED && existingPost.getStatus() != PostStatus.PUBLISHED) {
-        //     existingPost.setPublishedAt(LocalDateTime.now());
-        // }
-
         Post saved = postRepository.save(existingPost);
         log.info("Updated post with id={}", saved.getId());
         return saved;
     }
 
     @Transactional
+    @Caching(
+        evict = {
+            @CacheEvict(value = "posts", key = "#id"),
+            @CacheEvict(value = "posts", key = "'published'"),
+            @CacheEvict(value = "posts", key = "'search:*'", allEntries = true)
+        }
+    )
     public void deletePost(Long id) {
         if (!postRepository.existsById(id)) {
             log.warn("Attempted to delete non-existent post with id={}", id);
             throw new NoSuchElementException("Post not found with ID: " + id);
         }
-        // Optionally delete associated claps first if not using cascade delete
-        // clapRepository.deleteByPostId(id); // You'd need to add this method to ClapRepository
+        
+        // Delete associated claps first to maintain referential integrity
+        clapRepository.deleteByPostId(id);
         postRepository.deleteById(id);
         log.info("Deleted post with id={}", id);
     }
@@ -94,13 +119,18 @@ public class PostService {
     // --- Clap Operations ---
 
     @Transactional
+    @Caching(
+        evict = {
+            @CacheEvict(value = "posts", key = "#postId"),
+            @CacheEvict(value = "claps", key = "'count:' + #postId")
+        }
+    )
     public void clapForPost(Long postId, Long userId) {
         // Check if the user has already clapped for this post
         Optional<Clap> existingClap = clapRepository.findByUserIdAndPostId(userId, postId);
 
         if (existingClap.isPresent()) {
             log.warn("User {} already clapped for post {}", userId, postId);
-            // User has already clapped, you might throw an exception or just do nothing
             throw new IllegalStateException("User has already clapped for this post.");
         }
 
@@ -120,6 +150,12 @@ public class PostService {
     }
 
     @Transactional
+    @Caching(
+        evict = {
+            @CacheEvict(value = "posts", key = "#postId"),
+            @CacheEvict(value = "claps", key = "'count:' + #postId")
+        }
+    )
     public void unclapForPost(Long postId, Long userId) {
         Clap existingClap = clapRepository.findByUserIdAndPostId(userId, postId)
                 .orElseThrow(() -> {
@@ -138,7 +174,9 @@ public class PostService {
         log.info("User {} unclapped post {}", userId, postId);
     }
 
+    @Cacheable(value = "claps", key = "'count:' + #postId")
     public long getClapCountForPost(long postId) {
+        log.debug("Getting clap count for post: {}", postId);
         return clapRepository.countByPostId(postId);
     }
 }

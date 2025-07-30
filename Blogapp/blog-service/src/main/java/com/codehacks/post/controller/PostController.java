@@ -9,6 +9,7 @@ import com.codehacks.post.service.PostService;
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +32,7 @@ import java.util.NoSuchElementException;
 @RestController
 @RequestMapping("/api/v1/posts")
 @RequiredArgsConstructor
+@Slf4j
 public class PostController {
 
     private final PostService postService;
@@ -105,17 +107,5 @@ public class PostController {
     public ResponseEntity<Long> getClapCount(@PathVariable Long id) {
         long count = postService.getClapCountForPost(id);
         return ResponseEntity.ok(count);
-    }
-
-
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<String> handleNoSuchElementException(NoSuchElementException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    }
-
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleIllegalStateException(IllegalStateException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
     }
 }
