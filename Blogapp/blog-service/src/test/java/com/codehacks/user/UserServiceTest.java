@@ -190,11 +190,13 @@ class UserServiceTest {
     void deleteUser_shouldCallRepository() {
         // Given
         Long userId = 1L;
+        when(userRepository.existsById(userId)).thenReturn(true);
 
         // When
         userService.deleteUser(userId);
 
         // Then
+        verify(userRepository).existsById(userId);
         verify(userRepository).deleteById(userId);
     }
 

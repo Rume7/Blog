@@ -2,20 +2,20 @@ package com.codehacks.user;
 
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
+import com.codehacks.TestcontainersConfig;
 import com.codehacks.user.repository.UserRepository;
 import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
@@ -27,22 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @SpringBootTest
 @Testcontainers
 @ExtendWith(SpringExtension.class)
+@ActiveProfiles("test")
+@ContextConfiguration(classes = TestcontainersConfig.class)
 class UserIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
-            .withDatabaseName("userTestDB")
-            .withUsername("test")
-            .withPassword("test")
-            .withReuse(true);
-
-    @DynamicPropertySource
-    static void overrideProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
-    }
 
     @Autowired
     private UserRepository userRepository;
@@ -52,6 +39,11 @@ class UserIntegrationTest {
 
     @BeforeEach
     void cleanDb() {
+        userRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
         userRepository.deleteAll();
     }
 

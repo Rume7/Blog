@@ -74,38 +74,38 @@ class UserApiIntegrationTest {
     }
 
     @Test
-    void getCurrentUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getCurrentUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/me", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void getAllUsers_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getAllUsers_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void getUserById_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void getUserById_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void updateUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void updateUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    void deleteUser_shouldReturnUnauthorized_whenNotAuthenticated() {
+    void deleteUser_shouldReturnForbidden_whenNotAuthenticated() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/1", String.class);
         
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test

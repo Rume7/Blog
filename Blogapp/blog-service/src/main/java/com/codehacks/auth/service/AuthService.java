@@ -3,13 +3,17 @@ package com.codehacks.auth.service;
 import com.codehacks.auth.dto.LoginRequest;
 import com.codehacks.config.JwtService;
 import com.codehacks.email.dto.MagicLinkEmailRequest;
-import com.codehacks.email.service.EmailService;
+import com.codehacks.email.client.EmailServiceClient;
 import com.codehacks.user.dto.UserCreateRequest;
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
 import com.codehacks.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -20,15 +24,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserService userService;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final EmailService emailService;
+    private final EmailServiceClient emailServiceClient;
+    private final CacheManager cacheManager;
 
     @Transactional
+    @CacheEvict(value = "users", key = "#request.email")
     public User registerUser(UserCreateRequest request) {
         log.info("Registering new user with email: {}", request.getEmail());
 
@@ -75,7 +82,7 @@ public class AuthService {
                 user.getUsername()
         );
 
-        emailService.sendMagicLinkEmail(emailRequest);
+        emailServiceClient.sendMagicLinkEmail(emailRequest);
         log.info("Magic link email sent successfully to: {}", request.getEmail());
     }
 
@@ -87,13 +94,13 @@ public class AuthService {
         log.info("Verifying magic link token");
 
         // Validate the token
-        if (!emailService.validateMagicLinkToken(token)) {
+        if (!emailServiceClient.validateMagicLinkToken(token)) {
             log.warn("Magic link verification failed: Invalid token");
             throw new IllegalArgumentException("Invalid or expired magic link token");
         }
 
         // Get email from token
-        String email = emailService.getEmailFromToken(token);
+        String email = emailServiceClient.getEmailFromToken(token);
         if (email == null) {
             log.warn("Magic link verification failed: No email found for token");
             throw new IllegalArgumentException("Invalid magic link token");
@@ -105,6 +112,9 @@ public class AuthService {
                     log.warn("Magic link verification failed: User not found: {}", email);
                     return new IllegalArgumentException("User not found");
                 });
+
+        // Evict user cache for this email
+        cacheManager.getCache("users").evict(email);
 
         // Load user details
         UserDetails userDetails = userService.loadUserByUsername(user.getEmail());
@@ -124,6 +134,7 @@ public class AuthService {
     /**
      * Traditional username/password login (if implemented later)
      */
+    @Cacheable(value = "auth", key = "'token:' + #request.email")
     public String authenticate(LoginRequest request) {
         log.info("Authenticating user: {}", request.getEmail());
 
@@ -140,6 +151,7 @@ public class AuthService {
         return jwtToken;
     }
 
+    @Cacheable(value = "auth", key = "'refresh:' + #authentication.name")
     public String refreshToken(Authentication authentication) {
         log.debug("Refreshing token for user: {}", authentication.getName());
 
