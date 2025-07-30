@@ -2,34 +2,72 @@ package com.codehacks.user;
 
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
-import com.codehacks.TestcontainersConfig;
 import com.codehacks.user.repository.UserRepository;
 import com.codehacks.user.service.UserService;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
-@Testcontainers
-@ExtendWith(SpringExtension.class)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
-@ContextConfiguration(classes = TestcontainersConfig.class)
+@Testcontainers
 class UserIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
+            .withDatabaseName("blog_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
+
+    @DynamicPropertySource
+    static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        
+        // Redis configuration
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("spring.data.redis.enabled", () -> "true");
+        
+        // JWT configuration for tests
+        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
+        registry.add("jwt.expiration", () -> "86400000");
+        
+        // Magic link configuration for tests
+        registry.add("app.magic-link.base-url", () -> "http://localhost:3000");
+        registry.add("app.magic-link.expiration-minutes", () -> "15");
+        
+        // Email service configuration for tests
+        registry.add("app.email-service.base-url", () -> "http://localhost:8081");
+    }
 
     @Autowired
     private UserRepository userRepository;
@@ -59,12 +97,12 @@ class UserIntegrationTest {
 
         // When
         User created = userService.saveUser(user);
-        Optional<User> found = userService.findUserById(created.getId());
-        
+        assertThat(created.getId()).isNotNull();
+        assertThat(created.getDisplayName()).isEqualTo("integration"); // Use getDisplayName() for username field
+        assertThat(created.getEmail()).isEqualTo("integration@email.com");
+
         // Then
-        assertThat(found).isPresent();
-        assertThat(found.get().getDisplayName()).isEqualTo("integration"); // Use getDisplayName() for username field
-        assertThat(found.get().getEmail()).isEqualTo("integration@email.com");
+        assertThat(userService.findUserById(created.getId())).isPresent();
     }
 
     @Test
@@ -150,8 +188,7 @@ class UserIntegrationTest {
         userService.deleteUser(savedUser.getId());
         
         // Then
-        Optional<User> found = userService.findUserById(savedUser.getId());
-        assertThat(found).isEmpty();
+        assertThat(userService.findUserById(savedUser.getId())).isEmpty();
     }
 
     @Test
@@ -184,31 +221,25 @@ class UserIntegrationTest {
 
     @Test
     void duplicateEmail_shouldBePrevented_byDatabaseConstraint() {
-        // Note: This test verifies that the database prevents duplicate emails
-        // The database has a unique constraint on email field
-        
         // Given
         User user1 = new User();
-        user1.setUsername("user1");
-        user1.setFirstName("User");
-        user1.setLastName("One");
+        user1.setUsername("emailtest1");
+        user1.setFirstName("Email");
+        user1.setLastName("Test1");
         user1.setEmail("duplicate@example.com");
         user1.setRole(UserRole.USER);
 
         User user2 = new User();
-        user2.setUsername("user2");
-        user2.setFirstName("User");
-        user2.setLastName("Two");
+        user2.setUsername("emailtest2");
+        user2.setFirstName("Email");
+        user2.setLastName("Test2");
         user2.setEmail("duplicate@example.com"); // Same email
         user2.setRole(UserRole.USER);
 
-        // When
-        User saved1 = userService.saveUser(user1);
-        
-        // Then - second user should fail due to unique constraint
-        assertThat(saved1.getId()).isNotNull();
-        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> {
-            userService.saveUser(user2);
-        });
+        // When & Then
+        userService.saveUser(user1);
+        assertThatThrownBy(() -> userService.saveUser(user2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("User with this email already exists");
     }
 } 

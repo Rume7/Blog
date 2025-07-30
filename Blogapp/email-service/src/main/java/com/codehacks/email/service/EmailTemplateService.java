@@ -1,6 +1,7 @@
 package com.codehacks.email.service;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -8,8 +9,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @Service
-@Slf4j
 public class EmailTemplateService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmailTemplateService.class);
 
     /**
      * Generates the HTML content for magic link authentication emails

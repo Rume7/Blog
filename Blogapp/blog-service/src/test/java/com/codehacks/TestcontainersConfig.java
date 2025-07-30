@@ -4,7 +4,6 @@ import com.codehacks.email.client.EmailServiceClient;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -13,6 +12,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.any;
 
 /**
  * Testcontainers configuration for integration tests
@@ -23,7 +25,6 @@ import static org.mockito.Mockito.mock;
 public class TestcontainersConfig {
 
     @Container
-    @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
             .withDatabaseName("blog_test")
             .withUsername("test")
@@ -37,6 +38,11 @@ public class TestcontainersConfig {
 
     @DynamicPropertySource
     static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        
         // Redis configuration
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
@@ -60,6 +66,20 @@ public class TestcontainersConfig {
     @Bean
     @Primary
     public EmailServiceClient emailServiceClient() {
-        return mock(EmailServiceClient.class);
+        EmailServiceClient mockClient = mock(EmailServiceClient.class);
+        
+        // Configure mock behavior for magic link operations
+        when(mockClient.validateMagicLinkToken("invalid-token")).thenReturn(false);
+        when(mockClient.validateMagicLinkToken("token-for-nonexistent-user")).thenReturn(true);
+        when(mockClient.getEmailFromToken("token-for-nonexistent-user")).thenReturn("nonexistent@example.com");
+        
+        // Configure mock behavior for valid tokens
+        when(mockClient.validateMagicLinkToken("valid-token")).thenReturn(true);
+        when(mockClient.getEmailFromToken("valid-token")).thenReturn("test@example.com");
+        
+        // Configure mock behavior for sendMagicLinkEmail - do nothing (void method)
+        doNothing().when(mockClient).sendMagicLinkEmail(any());
+        
+        return mockClient;
     }
 } 

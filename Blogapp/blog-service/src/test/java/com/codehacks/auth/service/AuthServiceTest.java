@@ -335,7 +335,7 @@ class AuthServiceTest {
         // Then
         verify(authenticationManager).authenticate(argThat(token -> 
                 token instanceof UsernamePasswordAuthenticationToken &&
-                ((UsernamePasswordAuthenticationToken) token).getCredentials().equals("magic_link_placeholder_password")
+                ((UsernamePasswordAuthenticationToken) token).getCredentials().equals("magicLinkPlaceholderPassword")
         ));
     }
 

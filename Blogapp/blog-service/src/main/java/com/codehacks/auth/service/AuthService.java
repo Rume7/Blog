@@ -140,7 +140,7 @@ public class AuthService {
 
         // Authenticate using Spring Security's AuthenticationManager
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), "magic_link_placeholder_password")
+                new UsernamePasswordAuthenticationToken(request.getEmail(), "magicLinkPlaceholderPassword")
         );
 
         // If authentication is successful, generate JWT

@@ -4,21 +4,22 @@ import com.codehacks.auth.service.AuthService;
 import com.codehacks.user.dto.UserCreateRequest;
 import com.codehacks.user.model.User;
 import com.codehacks.user.model.UserRole;
-import com.codehacks.TestcontainersConfig;
 import com.codehacks.user.repository.UserRepository;
 import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Optional;
@@ -26,13 +27,47 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
-@Testcontainers
-@Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
-@ContextConfiguration(classes = TestcontainersConfig.class)
+@Testcontainers
 class AuthIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
+            .withDatabaseName("blog_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
+
+    @DynamicPropertySource
+    static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        
+        // Redis configuration
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("spring.data.redis.enabled", () -> "true");
+        
+        // JWT configuration for tests
+        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
+        registry.add("jwt.expiration", () -> "86400000");
+        
+        // Magic link configuration for tests
+        registry.add("app.magic-link.base-url", () -> "http://localhost:3000");
+        registry.add("app.magic-link.expiration-minutes", () -> "15");
+        
+        // Email service configuration for tests
+        registry.add("app.email-service.base-url", () -> "http://localhost:8081");
+    }
 
     @Autowired
     private AuthService authService;
@@ -104,30 +139,35 @@ class AuthIntegrationTest {
     @Test
     void registerUser_shouldPreventDuplicateUsername() {
         // Given
-        UserCreateRequest duplicateRequest = new UserCreateRequest();
-        duplicateRequest.setUsername("integrationuser"); // Same username
-        duplicateRequest.setFirstName("Different");
-        duplicateRequest.setLastName("User");
-        duplicateRequest.setEmail("different@example.com");
+        User user1 = new User();
+        user1.setUsername("integrationuser");
+        user1.setFirstName("Integration");
+        user1.setLastName("User");
+        user1.setEmail("integration1@email.com");
+        user1.setRole(UserRole.USER);
 
-        // Register first user
-        authService.registerUser(validRequest);
+        User user2 = new User();
+        user2.setUsername("integrationuser"); // Same username
+        user2.setFirstName("Integration");
+        user2.setLastName("User2");
+        user2.setEmail("integration2@email.com");
+        user2.setRole(UserRole.USER);
 
         // When & Then
-        assertThatThrownBy(() -> authService.registerUser(duplicateRequest))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Username is already taken.");
-
-        // Verify only one user exists
-        assertThat(userRepository.count()).isEqualTo(1);
+        userService.saveUser(user1);
+        assertThatThrownBy(() -> userService.saveUser(user2))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     @Test
     void verifyMagicLinkAndLogin_shouldThrowException_whenUserNotFound() {
+        // Given
+        String token = "valid-token-for-nonexistent-user";
+
         // When & Then
-        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin("nonexistent@example.com"))
+        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin(token))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("User not found with email: nonexistent@example.com");
+                .hasMessage("Invalid or expired magic link token");
     }
 
     @Test

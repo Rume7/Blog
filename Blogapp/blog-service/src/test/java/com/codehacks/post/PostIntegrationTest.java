@@ -1,6 +1,5 @@
 package com.codehacks.post;
 
-import com.codehacks.TestcontainersConfig;
 import com.codehacks.post.model.Post;
 import com.codehacks.post.model.PostStatus;
 import com.codehacks.post.service.PostService;
@@ -10,13 +9,15 @@ import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
@@ -30,13 +31,47 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Integration tests for Post module using Testcontainers with PostgreSQL.
  * Tests end-to-end functionality with real database operations.
  */
-@ExtendWith(SpringExtension.class)
 @SpringBootTest
-@Testcontainers
-@Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
-@ContextConfiguration(classes = TestcontainersConfig.class)
+@Testcontainers
 class PostIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
+            .withDatabaseName("blog_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
+
+    @DynamicPropertySource
+    static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        
+        // Redis configuration
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("spring.data.redis.enabled", () -> "true");
+        
+        // JWT configuration for tests
+        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
+        registry.add("jwt.expiration", () -> "86400000");
+        
+        // Magic link configuration for tests
+        registry.add("app.magic-link.base-url", () -> "http://localhost:3000");
+        registry.add("app.magic-link.expiration-minutes", () -> "15");
+        
+        // Email service configuration for tests
+        registry.add("app.email-service.base-url", () -> "http://localhost:8081");
+    }
 
     @Autowired
     private PostService postService;

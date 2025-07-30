@@ -26,7 +26,7 @@ class JwtServiceTest {
     void setUp() {
         jwtService = new JwtService();
         // Set a test secret key (base64 encoded)
-        ReflectionTestUtils.setField(jwtService, "SECRET_KEY", 
+        ReflectionTestUtils.setField(jwtService, "secretKey", 
             "ZmFrZV9zZWNyZXRfa2V5X2Zvcl90ZXN0aW5nX3B1cnBvc2VzX29ubHlfZG9udF91c2VfaW5fcHJvZHVjdGlvbg==");
         
         testUser = new User();

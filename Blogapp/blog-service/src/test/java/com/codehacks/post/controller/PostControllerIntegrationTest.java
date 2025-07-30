@@ -1,57 +1,70 @@
 package com.codehacks.post.controller;
 
-import com.codehacks.TestcontainersConfig;
-import com.codehacks.post.dto.PostResponse;
-import org.junit.jupiter.api.BeforeEach;
+import com.codehacks.post.model.Post;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Integration tests for PostController using Testcontainers and real HTTP requests.
- * Tests both public endpoints (no authentication required) and protected endpoints (authentication required).
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-@ExtendWith(SpringExtension.class)
-@Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
-@ContextConfiguration(classes = TestcontainersConfig.class)
+@Testcontainers
 class PostControllerIntegrationTest {
 
-    @LocalServerPort
-    private int port;
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16.8-alpine")
+            .withDatabaseName("blog_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
+
+    @DynamicPropertySource
+    static void overrideProps(DynamicPropertyRegistry registry) {
+        // PostgreSQL configuration
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        
+        // Redis configuration
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("spring.data.redis.enabled", () -> "true");
+        
+        // JWT configuration for tests
+        registry.add("jwt.secret", () -> "testSecretKeyForTestingPurposesOnlyThisShouldBeAtLeast256BitsLong");
+        registry.add("jwt.expiration", () -> "86400000");
+        
+        // Magic link configuration for tests
+        registry.add("app.magic-link.base-url", () -> "http://localhost:3000");
+        registry.add("app.magic-link.expiration-minutes", () -> "15");
+        
+        // Email service configuration for tests
+        registry.add("app.email-service.base-url", () -> "http://localhost:8081");
+    }
 
     @Autowired
     private TestRestTemplate restTemplate;
 
-    private HttpHeaders publicHeaders;
-
-    @BeforeEach
-    void setUp() {
-        // Setup headers for public endpoints only
-        publicHeaders = new HttpHeaders();
-        publicHeaders.setContentType(MediaType.APPLICATION_JSON);
-    }
-
     private String baseUrl() {
-        return "http://localhost:" + port + "/api/v1/posts";
+        return "/api/v1/posts";
     }
 
 
@@ -63,7 +76,7 @@ class PostControllerIntegrationTest {
     @Test
     void getAllPublishedPosts_shouldReturnPublishedPostsOnly() {
         // Given & When: Request all published posts
-        ResponseEntity<PostResponse[]> response = restTemplate.getForEntity(baseUrl(), PostResponse[].class);
+        ResponseEntity<Post[]> response = restTemplate.getForEntity(baseUrl(), Post[].class);
         
         // Then: Should return empty array
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
