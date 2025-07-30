@@ -1,5 +1,6 @@
 package com.codehacks.auth.controller;
 
+import com.codehacks.TestConfig;
 import com.codehacks.auth.dto.LoginRequest;
 import com.codehacks.auth.service.AuthService;
 import com.codehacks.user.dto.UserCreateRequest;
@@ -8,18 +9,17 @@ import com.codehacks.user.model.UserRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.test.context.ActiveProfiles;
+import com.codehacks.TestcontainersConfig;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -31,24 +31,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
+@WebMvcTest(AuthController.class)
+@Import({TestConfig.class, TestcontainersConfig.class})
+@ActiveProfiles("test")
 class AuthControllerTest {
 
-    @Mock
+    @MockBean
     private AuthService authService;
 
-    @Mock
+    @MockBean
     private Authentication authentication;
 
-    @Mock
+    @MockBean
     private SecurityContext securityContext;
 
-    @InjectMocks
+    @Autowired
     private AuthController authController;
 
+    @Autowired
     private MockMvc mockMvc;
-    private ObjectMapper objectMapper = new ObjectMapper();;
+    
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     private User testUser;
     private UserCreateRequest validRegisterRequest;
@@ -56,8 +59,6 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
-
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");

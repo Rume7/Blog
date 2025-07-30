@@ -17,6 +17,7 @@
     <description>Blog Project for Spring Boot</description>
 
     <modules>
+        <module>email-service</module>
         <module>blog-service</module>
         <module>blog-spec</module>
     </modules>

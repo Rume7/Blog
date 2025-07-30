@@ -1,0 +1,26 @@
+Blog - Sign in to Your Account
+=====================================
+
+Hello {{username}},
+
+You requested a magic link to sign in to your BlogApp account. Click the link below to securely access your account:
+
+{{magicLinkUrl}}
+
+SECURITY NOTICE:
+- This link will expire in 15 minutes
+- This link can only be used once
+- If you didn't request this sign-in link, please ignore this email
+
+IMPORTANT: If the link above doesn't work, copy and paste it directly into your browser's address bar.
+
+For security reasons, this link will expire in 15 minutes and can only be used once.
+
+If you have any questions or concerns, please contact our support team.
+
+Best regards,
+The BlogApp Team
+
+---
+This is an automated message, please do not reply to this email.
+© 2024 Blog. All rights reserved.

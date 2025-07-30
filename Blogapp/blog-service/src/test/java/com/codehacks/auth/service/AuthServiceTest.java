@@ -1,5 +1,7 @@
 package com.codehacks.auth.service;
 
+import com.codehacks.BaseIntegrationTest;
+import com.codehacks.TestEmailService;
 import com.codehacks.auth.dto.LoginRequest;
 import com.codehacks.config.JwtService;
 import com.codehacks.user.dto.UserCreateRequest;
@@ -8,12 +10,8 @@ import com.codehacks.user.model.UserRole;
 import com.codehacks.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +19,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,26 +33,28 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-class AuthServiceTest {
+@ActiveProfiles("test")
+class AuthServiceTest extends BaseIntegrationTest {
 
-    @Mock
+    @MockBean
     private UserService userService;
 
-    @Mock
+    @MockBean
     private JwtService jwtService;
 
-    @Mock
+    @MockBean
     private AuthenticationManager authenticationManager;
 
-    @Mock
+    @MockBean
     private Authentication authentication;
 
-    @Mock
+    @MockBean
     private SecurityContext securityContext;
 
-    @InjectMocks
+    @MockBean
+    private TestEmailService emailService;
+
+    @Autowired
     private AuthService authService;
 
     private User testUser;
@@ -141,17 +142,14 @@ class AuthServiceTest {
         // Given
         when(userService.findByEmail(validRequest.getEmail())).thenReturn(Optional.empty());
         when(userService.findByUsername(validRequest.getUsername())).thenReturn(Optional.empty());
-        when(userService.saveUser(any(User.class))).thenAnswer(invocation -> {
-            User savedUser = invocation.getArgument(0);
-            savedUser.setId(1L);
-            return savedUser;
-        });
+        when(userService.saveUser(any(User.class))).thenReturn(testUser);
 
         // When
         User result = authService.registerUser(validRequest);
 
         // Then
-        assertThat(result.getDisplayName()).isEqualTo("newuser"); // Use getDisplayName() for username field
+        assertThat(result).isNotNull();
+        assertThat(result.getUsername()).isEqualTo("newuser");
         assertThat(result.getFirstName()).isEqualTo("New");
         assertThat(result.getLastName()).isEqualTo("User");
         assertThat(result.getEmail()).isEqualTo("new@example.com");
@@ -160,8 +158,36 @@ class AuthServiceTest {
     }
 
     @Test
+    void initiateMagicLinkLogin_shouldSendEmail_whenValidRequest() {
+        // Given
+        when(userService.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(testUser));
+
+        // When
+        authService.initiateMagicLinkLogin(loginRequest);
+
+        // Then
+        verify(userService).findByEmail(loginRequest.getEmail());
+        verify(emailService).sendMagicLinkEmail(any());
+    }
+
+    @Test
+    void initiateMagicLinkLogin_shouldThrowException_whenUserNotFound() {
+        // Given
+        when(userService.findByEmail(loginRequest.getEmail())).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> authService.initiateMagicLinkLogin(loginRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("User not found with email: " + loginRequest.getEmail());
+
+        verify(userService).findByEmail(loginRequest.getEmail());
+        verify(emailService, never()).sendMagicLinkEmail(any());
+    }
+
+    @Test
     void verifyMagicLinkAndLogin_shouldReturnJwtToken_whenValidEmail() {
         // Given
+        String token = "valid-token";
         String email = "test@example.com";
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(email)
@@ -169,15 +195,19 @@ class AuthServiceTest {
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_USER")))
                 .build();
 
+        when(emailService.validateMagicLinkToken(token)).thenReturn(true);
+        when(emailService.getEmailFromToken(token)).thenReturn(email);
         when(userService.findByEmail(email)).thenReturn(Optional.of(testUser));
         when(userService.loadUserByUsername(email)).thenReturn(userDetails);
         when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
 
         // When
-        String result = authService.verifyMagicLinkAndLogin(email);
+        String result = authService.verifyMagicLinkAndLogin(token);
 
         // Then
         assertThat(result).isEqualTo("jwt-token");
+        verify(emailService).validateMagicLinkToken(token);
+        verify(emailService).getEmailFromToken(token);
         verify(userService).findByEmail(email);
         verify(userService).loadUserByUsername(email);
         verify(jwtService).generateToken(userDetails);
@@ -187,17 +217,58 @@ class AuthServiceTest {
     @Test
     void verifyMagicLinkAndLogin_shouldThrowException_whenUserNotFound() {
         // Given
+        String token = "valid-token";
         String email = "nonexistent@example.com";
+        
+        when(emailService.validateMagicLinkToken(token)).thenReturn(true);
+        when(emailService.getEmailFromToken(token)).thenReturn(email);
         when(userService.findByEmail(email)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin(email))
+        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin(token))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("User not found with email: " + email);
+                .hasMessage("User not found");
 
+        verify(emailService).validateMagicLinkToken(token);
+        verify(emailService).getEmailFromToken(token);
         verify(userService).findByEmail(email);
         verify(userService, never()).loadUserByUsername(anyString());
         verify(jwtService, never()).generateToken(any(UserDetails.class));
+    }
+
+    @Test
+    void verifyMagicLinkAndLogin_shouldThrowException_whenInvalidToken() {
+        // Given
+        String token = "invalid-token";
+        
+        when(emailService.validateMagicLinkToken(token)).thenReturn(false);
+
+        // When & Then
+        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin(token))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid or expired magic link token");
+
+        verify(emailService).validateMagicLinkToken(token);
+        verify(emailService, never()).getEmailFromToken(anyString());
+        verify(userService, never()).findByEmail(anyString());
+    }
+
+    @Test
+    void verifyMagicLinkAndLogin_shouldThrowException_whenEmailNotFound() {
+        // Given
+        String token = "valid-token";
+        
+        when(emailService.validateMagicLinkToken(token)).thenReturn(true);
+        when(emailService.getEmailFromToken(token)).thenReturn(null);
+
+        // When & Then
+        assertThatThrownBy(() -> authService.verifyMagicLinkAndLogin(token))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid magic link token");
+
+        verify(emailService).validateMagicLinkToken(token);
+        verify(emailService).getEmailFromToken(token);
+        verify(userService, never()).findByEmail(anyString());
     }
 
     @Test

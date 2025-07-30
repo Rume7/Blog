@@ -1,16 +1,180 @@
 openapi: 3.0.3
 info:
   title: BlogApp API
-  version: 1.0.0
-  description: API documentation for BlogApp User endpoints
+  version: 1.0.9
+  description: |
+    API documentation for BlogApp - A comprehensive blog platform with magic link authentication.
+    
+    ## Authentication
+    This API uses magic link authentication. Users register with their email and receive a secure link to sign in.
+    
+    ## Features
+    - Magic link authentication (no passwords required)
+    - User management
+    - Blog post creation and management
+    - Post clapping system
+    - Email service integration
+    
+    ## Endpoints
+    - **Authentication**: `/api/v1/auth/*` - Registration and magic link authentication
+    - **Users**: `/api/v1/users/*` - User management
+    - **Posts**: `/api/v1/posts/*` - Blog post management
+    - **Email Service**: `/api/v1/email/*` - Email service endpoints
+    - **Health**: `/actuator/health` - Service health check
 
 servers:
   - url: http://localhost:8080
+    description: Development server
+  - url: https://api.blogapp.com
+    description: Production server
 
 paths:
+  # Authentication Endpoints
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account. No password required - uses magic link authentication.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad request - validation error or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Initiate magic link login
+      description: Sends a magic link to the user's email for authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Magic link sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Magic link sent to your email. Please check your inbox and click the link to sign in."
+        '400':
+          description: Bad request - user not found or invalid email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/verify-magic-link:
+    get:
+      tags:
+        - Authentication
+      summary: Verify magic link and complete login
+      description: Verifies the magic link token and returns a JWT token for authentication
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Magic link token from email
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token for authentication
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  message:
+                    type: string
+                    example: "Login successful"
+        '400':
+          description: Bad request - invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh JWT token
+      description: Refreshes the current JWT token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: New JWT token
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Unauthorized - invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # User Management Endpoints
   /api/v1/users:
     get:
+      tags:
+        - Users
       summary: Get all users
+      description: Retrieves a list of all users (admin only)
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: List of users
@@ -20,30 +184,34 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserResponse'
-    post:
-      summary: Create a new user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserRequest'
-      responses:
-        '201':
-          description: User created
+        '401':
+          description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/users/{id}:
     get:
+      tags:
+        - Users
       summary: Get user by ID
+      description: Retrieves a specific user by ID
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: User ID
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: User found
@@ -51,22 +219,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
+      tags:
+        - Users
       summary: Update user by ID
+      description: Updates a user's profile (admin or own profile only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: User ID
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRequest'
+              $ref: '#/components/schemas/UserUpdateRequest'
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: User updated
@@ -74,24 +258,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad request - validation error or email already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - can only update own profile or admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
+      tags:
+        - Users
       summary: Delete user by ID
+      description: Deletes a user (admin only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: User ID
+      security:
+        - BearerAuth: []
       responses:
         '204':
           description: User deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/users/me:
     get:
+      tags:
+        - Users
       summary: Get current user's profile
+      description: Retrieves the current authenticated user's profile
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: User profile
@@ -101,26 +335,24 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           description: Unauthorized
-    put:
-      summary: Update current user's profile
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserRequest'
-      responses:
-        '200':
-          description: User profile updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
-        '401':
-          description: Unauthorized
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Post Management Endpoints
   /api/v1/posts:
     get:
+      tags:
+        - Posts
       summary: Get all published posts
+      description: Retrieves a list of all published posts with optional search
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Search query for post title or content
       responses:
         '200':
           description: List of published posts
@@ -131,13 +363,18 @@ paths:
                 items:
                   $ref: '#/components/schemas/PostResponse'
     post:
+      tags:
+        - Posts
       summary: Create a new post
+      description: Creates a new blog post (admin only)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PostRequest'
+      security:
+        - BearerAuth: []
       responses:
         '201':
           description: Post created
@@ -145,15 +382,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PostResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/posts/{id}:
     get:
+      tags:
+        - Posts
       summary: Get post by ID
+      description: Retrieves a specific post by ID. Draft posts are only accessible by the author or admin.
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
       responses:
         '200':
           description: Post found
@@ -162,23 +422,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/PostResponse'
         '403':
-          description: Forbidden (if draft and not author/admin)
+          description: Forbidden - draft post access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
+      tags:
+        - Posts
       summary: Update post by ID
+      description: Updates a post (admin or post author only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PostRequest'
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Post updated
@@ -186,53 +460,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PostResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - can only update own posts or admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
+      tags:
+        - Posts
       summary: Delete post by ID
+      description: Deletes a post (admin only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
+      security:
+        - BearerAuth: []
       responses:
         '204':
           description: Post deleted
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/posts/{id}/clap:
     post:
+      tags:
+        - Posts
       summary: Clap for a post
+      description: Adds a clap to a post (authenticated users only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Clapped successfully
+        '400':
+          description: Bad request - already clapped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
+      tags:
+        - Posts
       summary: Unclap for a post
+      description: Removes a clap from a post (authenticated users only)
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Unclapped successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found or no clap exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/posts/{id}/claps/count:
     get:
+      tags:
+        - Posts
       summary: Get clap count for a post
+      description: Retrieves the total number of claps for a post
       parameters:
         - in: path
           name: id
           required: true
           schema:
             type: integer
+          description: Post ID
       responses:
         '200':
           description: Clap count
@@ -240,78 +606,315 @@ paths:
             application/json:
               schema:
                 type: integer
+                example: 42
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Email Service Endpoints
+  /api/v1/email/health:
+    get:
+      tags:
+        - Email Service
+      summary: Email service health check
+      description: Checks the health of the email service
+      responses:
+        '200':
+          description: Email service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "UP"
+                  message:
+                    type: string
+                    example: "Email service is running"
+        '503':
+          description: Email service is down
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "DOWN"
+                  message:
+                    type: string
+                    example: "Email service is not available"
+
+  # Actuator Endpoints
+  /actuator/health:
+    get:
+      tags:
+        - System
+      summary: Application health check
+      description: Spring Boot Actuator health endpoint
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "UP"
+                  components:
+                    type: object
+                    properties:
+                      db:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: "UP"
+                      mail:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: "UP"
+
+  /actuator/info:
+    get:
+      tags:
+        - System
+      summary: Application information
+      description: Spring Boot Actuator info endpoint
+      responses:
+        '200':
+          description: Application information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: "blog-service"
+                      version:
+                        type: string
+                        example: "1.0.9"
+
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from magic link authentication
+
   schemas:
-    UserRequest:
+    # Authentication Schemas
+    UserCreateRequest:
       type: object
       properties:
         username:
           type: string
+          minLength: 3
+          maxLength: 50
+          example: "john_doe"
+          description: Unique username for the user
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "John"
+          description: User's first name
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Doe"
+          description: User's last name
         email:
           type: string
-        password:
-          type: string
+          format: email
+          example: "john.doe@example.com"
+          description: User's email address (used for magic link authentication)
       required:
         - username
+        - firstName
+        - lastName
         - email
-        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+          description: User's email address
+      required:
+        - email
+
+    # User Schemas
     UserResponse:
       type: object
       properties:
         id:
           type: integer
+          example: 1
+          description: Unique user ID
         username:
           type: string
+          example: "john_doe"
+          description: User's username
+        firstName:
+          type: string
+          example: "John"
+          description: User's first name
+        lastName:
+          type: string
+          example: "Doe"
+          description: User's last name
         email:
           type: string
+          format: email
+          example: "john.doe@example.com"
+          description: User's email address
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          example: "USER"
+          description: User's role in the system
         createdAt:
           type: string
           format: date-time
+          example: "2024-01-15T10:30:00Z"
+          description: User creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+          description: User last update timestamp
       required:
         - id
         - username
+        - firstName
+        - lastName
         - email
+        - role
         - createdAt
+        - updatedAt
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "john_doe_updated"
+          description: Updated username
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "John"
+          description: Updated first name
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "Doe"
+          description: Updated last name
+        email:
+          type: string
+          format: email
+          example: "john.doe.updated@example.com"
+          description: Updated email address
+      required:
+        - username
+        - firstName
+        - lastName
+        - email
+
+    # Post Schemas
     PostRequest:
       type: object
       properties:
         title:
           type: string
+          minLength: 1
+          maxLength: 200
+          example: "My First Blog Post"
+          description: Post title
         content:
           type: string
+          minLength: 1
+          example: "This is the content of my first blog post..."
+          description: Post content (supports markdown)
         imageUrl:
           type: string
+          format: uri
+          example: "https://example.com/image.jpg"
+          description: Optional image URL for the post
         status:
           type: string
           enum: [DRAFT, PUBLISHED]
+          example: "PUBLISHED"
+          description: Post status
       required:
         - title
         - content
         - status
+
     PostResponse:
       type: object
       properties:
         id:
           type: integer
+          example: 1
+          description: Unique post ID
         title:
           type: string
+          example: "My First Blog Post"
+          description: Post title
         content:
           type: string
+          example: "This is the content of my first blog post..."
+          description: Post content
         imageUrl:
           type: string
+          format: uri
+          example: "https://example.com/image.jpg"
+          description: Post image URL
         status:
           type: string
           enum: [DRAFT, PUBLISHED]
+          example: "PUBLISHED"
+          description: Post status
         clapsCount:
           type: integer
+          example: 42
+          description: Number of claps for this post
         authorId:
           type: integer
+          example: 1
+          description: ID of the post author
         createdAt:
           type: string
           format: date-time
+          example: "2024-01-15T10:30:00Z"
+          description: Post creation timestamp
         updatedAt:
           type: string
           format: date-time
+          example: "2024-01-15T10:30:00Z"
+          description: Post last update timestamp
       required:
         - id
         - title
@@ -321,20 +924,42 @@ components:
         - authorId
         - createdAt
         - updatedAt
-    ClapResponse:
+
+    # Error Schema
+    ErrorResponse:
       type: object
       properties:
-        id:
+        status:
           type: integer
-        userId:
-          type: integer
-        postId:
-          type: integer
-        createdAt:
+          example: 400
+          description: HTTP status code
+        error:
           type: string
-          format: date-time
+          example: "Bad Request"
+          description: Error type
+        message:
+          type: string
+          example: "Validation failed"
+          description: Error message
+        details:
+          type: object
+          description: Additional error details (for validation errors)
+          example:
+            email: "Invalid email format"
+            username: "Username is already taken"
       required:
-        - id
-        - userId
-        - postId
-        - createdAt
+        - status
+        - error
+        - message
+
+tags:
+  - name: Authentication
+    description: Magic link authentication endpoints
+  - name: Users
+    description: User management endpoints
+  - name: Posts
+    description: Blog post management endpoints
+  - name: Email Service
+    description: Email service health and monitoring endpoints
+  - name: System
+    description: System health and information endpoints

@@ -1,11 +1,9 @@
-springdoc:
-  api-docs:
-    enabled: true
-  swagger-ui:
-    url: /open-api.yml
-
-# Email Configuration
+# Email Service Configuration
 spring:
+  application:
+    name: email-service
+  
+  # Email Configuration
   mail:
     host: smtp.gmail.com
     port: 587
@@ -18,6 +16,22 @@ spring:
           starttls:
             enable: true
     test-connection: false
+
+  # Database Configuration (for token storage)
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/email_service}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
 
 # Application Configuration
 app:
@@ -46,9 +60,10 @@ management:
     os:
       enabled: true
 
-server:
-  compression:
-    enabled: true
-    mime-types: application/json
-  http2:
-    enabled: true
+# Logging Configuration
+logging:
+  level:
+    com.codehacks.email: INFO
+    org.springframework.mail: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n" 
