@@ -1,80 +1,152 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 
 // Login Page
 const LoginPage = ({ onNavigate }) => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
   const { login } = useContext(AuthContext);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('Sending magic link to your email...');
-    // In a real app, make an API call to your backend:
-    // await fetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email }) });
-    // Simulate success
-    setTimeout(() => {
-      setMessage('Magic link sent! Check your inbox to complete login.');
-      // For demonstration, let's auto-login a mock admin or user after a delay
-      if (email === 'admin@example.com') {
-        login({ id: 'admin1', email: 'admin@example.com', role: 'ADMIN' });
-        onNavigate('home');
-      } else if (email === 'user@example.com') {
-        login({ id: 'user1', email: 'user@example.com', role: 'USER' });
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        console.log('Login successful:', result.user);
         onNavigate('home');
       } else {
-        // If not a mock user, just show the message and stay on login page
-        // In a real app, the user would click the link in their email
+        setError(result.error || 'Login failed');
       }
-    }, 2000);
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error('Login error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-lg">
+      <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 font-serif">
-            Sign in to MyBlog
+            Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your email to receive a magic link.
+            Or{' '}
+            <button
+              onClick={() => onNavigate('register')}
+              className="font-medium text-green-600 hover:text-green-500 transition duration-200"
+            >
+              create a new account
+            </button>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+        <form className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-lg" onSubmit={handleSubmit}>
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+              {error}
+            </div>
+          )}
+          
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email-address" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
               </label>
               <input
-                id="email-address"
+                id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
               />
+            </div>
+            
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1 relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <a href="#" className="font-medium text-green-600 hover:text-green-500 transition duration-200">
+                Forgot your password?
+              </a>
             </div>
           </div>
 
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-200"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
             >
-              Send Magic Link
+              {isLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <LogIn size={16} />
+                  <span>Sign in</span>
+                </div>
+              )}
             </button>
           </div>
-          {message && (
-            <p className="mt-2 text-center text-sm text-gray-600">{message}</p>
-          )}
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => onNavigate('home')}
+              className="text-sm text-gray-600 hover:text-gray-500 transition duration-200"
+            >
+              Back to Home
+            </button>
+          </div>
         </form>
-        <div className="text-center text-sm">
-          <p className="text-gray-600">Don't have an account? <button onClick={() => onNavigate('register')} className="font-medium text-green-600 hover:text-green-500">Register</button></p>
-        </div>
       </div>
     </div>
   );
