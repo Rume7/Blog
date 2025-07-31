@@ -260,9 +260,10 @@ class NotificationLogRepositoryTest {
 
     @Test
     void shouldNotFindNotificationsForRetryWhenOld() {
-        // Given - Create new logs with old timestamps
-        LocalDateTime oldTime = LocalDateTime.now().minusDays(2);
+        // Given - Clean up any existing logs first
+        notificationLogRepository.deleteAll();
         
+        // Create logs with current timestamps
         NotificationLog oldFailedLog = NotificationLog.builder()
                 .subscription(testSubscription)
                 .email("test@example.com")
@@ -272,7 +273,6 @@ class NotificationLogRepositoryTest {
                 .status(NotificationStatus.FAILED)
                 .errorMessage("Old error")
                 .postId(4L)
-                .createdAt(oldTime)
                 .build();
 
         NotificationLog oldPendingLog = NotificationLog.builder()
@@ -283,19 +283,19 @@ class NotificationLogRepositoryTest {
                 .content("Old Pending Content")
                 .status(NotificationStatus.PENDING)
                 .postId(5L)
-                .createdAt(oldTime)
                 .build();
 
+        // Save the logs
         notificationLogRepository.save(oldFailedLog);
         notificationLogRepository.save(oldPendingLog);
 
-        // Use a time that's between the old logs and now
-        LocalDateTime since = oldTime.plusDays(1);
+        // Use a time that's in the future (so no logs should be found)
+        LocalDateTime futureTime = LocalDateTime.now().plusDays(1);
 
         // When
-        List<NotificationLog> logs = notificationLogRepository.findNotificationsForRetry(since);
+        List<NotificationLog> logs = notificationLogRepository.findNotificationsForRetry(futureTime);
 
-        // Then
+        // Then - No logs should be found because they were created before the future time
         assertThat(logs).isEmpty();
     }
 
