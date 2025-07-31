@@ -19,6 +19,7 @@ public final class Constants {
     public static final String USERS_PATH = API_V1 + "/users";
     public static final String EMAIL_PATH = API_V1 + "/email";
     public static final String SUBSCRIPTIONS_PATH = API_V1 + "/subscriptions";
+    public static final String COMMENTS_PATH = API_V1 + "/comments";
     
     // Auth-specific endpoints
     public static final String LOGIN_ENDPOINT = AUTH_PATH + "/login";
@@ -52,6 +53,27 @@ public final class Constants {
     public static final String GET_ALL_SUBSCRIPTIONS_ENDPOINT = SUBSCRIPTIONS_PATH;
     public static final String GET_SUBSCRIPTION_STATISTICS_ENDPOINT = SUBSCRIPTIONS_PATH + "/statistics";
     
+    // Comment-specific endpoints
+    public static final String CREATE_COMMENT_ENDPOINT = COMMENTS_PATH;
+    public static final String GET_COMMENT_BY_ID_ENDPOINT = COMMENTS_PATH + "/{id}";
+    public static final String GET_COMMENTS_BY_POST_ENDPOINT = COMMENTS_PATH + "/post/{postId}";
+    public static final String GET_ALL_COMMENTS_BY_POST_ENDPOINT = COMMENTS_PATH + "/post/{postId}/all";
+    public static final String GET_COMMENTS_BY_POST_PAGE_ENDPOINT = COMMENTS_PATH + "/post/{postId}/page";
+    public static final String GET_COMMENT_REPLIES_ENDPOINT = COMMENTS_PATH + "/{id}/replies";
+    public static final String GET_COMMENTS_BY_USER_ENDPOINT = COMMENTS_PATH + "/user/{userId}";
+    public static final String GET_COMMENTS_BY_STATUS_ENDPOINT = COMMENTS_PATH + "/status/{status}";
+    public static final String GET_PENDING_COMMENTS_ENDPOINT = COMMENTS_PATH + "/pending";
+    public static final String UPDATE_COMMENT_ENDPOINT = COMMENTS_PATH + "/{id}";
+    public static final String DELETE_COMMENT_ENDPOINT = COMMENTS_PATH + "/{id}";
+    public static final String MODERATE_COMMENT_ENDPOINT = COMMENTS_PATH + "/{id}/moderate";
+    public static final String GET_COMMENT_STATISTICS_ENDPOINT = COMMENTS_PATH + "/statistics";
+    public static final String GET_RECENT_COMMENTS_ENDPOINT = COMMENTS_PATH + "/recent";
+    public static final String SEARCH_COMMENTS_ENDPOINT = COMMENTS_PATH + "/search";
+    public static final String CHECK_USER_COMMENTED_ENDPOINT = COMMENTS_PATH + "/check/{postId}";
+    public static final String GET_USER_RECENT_COMMENT_ENDPOINT = COMMENTS_PATH + "/user/{userId}/recent";
+    public static final String COUNT_COMMENTS_BY_STATUS_ENDPOINT = COMMENTS_PATH + "/count/status/{status}";
+    public static final String COUNT_COMMENTS_BY_POST_ENDPOINT = COMMENTS_PATH + "/count/post/{postId}";
+    
     // HTTP Methods (for reference)
     public static final String GET = "GET";
     public static final String POST = "POST";
@@ -84,4 +106,5 @@ public final class Constants {
     public static final String POSTS_CACHE = "posts";
     public static final String CLAPS_CACHE = "claps";
     public static final String AUTH_CACHE = "auth";
+    public static final String COMMENTS_CACHE = "comments";
 } 

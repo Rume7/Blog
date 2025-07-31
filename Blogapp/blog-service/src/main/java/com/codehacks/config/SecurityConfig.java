@@ -53,6 +53,7 @@ public class SecurityConfig {
                                 Constants.SUBSCRIPTIONS_PATH, // Allow public access to subscribe
                                 Constants.SUBSCRIPTIONS_PATH + "/verify/**", // Allow public access to verify subscription
                                 Constants.SUBSCRIPTIONS_PATH + "/{token}", // Allow public access to unsubscribe and get subscription
+                                Constants.COMMENTS_PATH + "/post/{postId}/page", // Allow public access to paginated comments only
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -60,6 +61,9 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/open-api.yml"
                         ).permitAll()
+                        .requestMatchers(
+                                Constants.COMMENTS_PATH + "/**" // All other comment endpoints require authentication
+                        ).hasAnyRole("USER", "ADMIN", "MODERATOR")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
