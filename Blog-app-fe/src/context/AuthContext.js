@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await apiService.register(userData);
+      await apiService.register(userData);
       // After successful registration, log the user in
       const loginResponse = await apiService.login(userData.email, userData.password);
       setUser(loginResponse.user);

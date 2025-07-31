@@ -111,9 +111,12 @@ const LoginPage = ({ onNavigate }) => {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <a href="#" className="font-medium text-green-600 hover:text-green-500 transition duration-200">
+              <button
+                type="button"
+                className="font-medium text-green-600 hover:text-green-500 transition duration-200"
+              >
                 Forgot your password?
-              </a>
+              </button>
             </div>
           </div>
 

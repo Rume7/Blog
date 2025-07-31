@@ -2,7 +2,6 @@ import React, { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { User, Camera, Save } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
-import apiService from '../services/api';
 
 // Profile Page
 const ProfilePage = ({ onNavigate }) => {
