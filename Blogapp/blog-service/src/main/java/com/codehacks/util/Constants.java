@@ -1,0 +1,76 @@
+package com.codehacks.util;
+
+/**
+ * Constants class for API endpoints and other application constants.
+ * This class centralizes all endpoint paths to ensure consistency and ease of maintenance.
+ */
+public final class Constants {
+
+    private Constants() {
+        // Private constructor to prevent instantiation
+    }
+
+    // API Base Paths
+    public static final String API_V1 = "/api/v1";
+    
+    // Main Resource Paths
+    public static final String POSTS_PATH = API_V1 + "/posts";
+    public static final String AUTH_PATH = API_V1 + "/auth";
+    public static final String USERS_PATH = API_V1 + "/users";
+    public static final String EMAIL_PATH = API_V1 + "/email";
+    
+    // Auth-specific endpoints
+    public static final String LOGIN_ENDPOINT = AUTH_PATH + "/login";
+    public static final String REGISTER_ENDPOINT = AUTH_PATH + "/register";
+    public static final String VERIFY_MAGIC_LINK_ENDPOINT = AUTH_PATH + "/verify-magic-link";
+    
+    // User-specific endpoints
+    public static final String USER_BY_ID_ENDPOINT = USERS_PATH + "/{id}";
+    public static final String ALL_USERS_ENDPOINT = USERS_PATH;
+    
+    // Post-specific endpoints
+    public static final String POST_BY_ID_ENDPOINT = POSTS_PATH + "/{id}";
+    public static final String ALL_POSTS_ENDPOINT = POSTS_PATH;
+    public static final String CREATE_POST_ENDPOINT = POSTS_PATH;
+    public static final String UPDATE_POST_ENDPOINT = POSTS_PATH + "/{id}";
+    public static final String DELETE_POST_ENDPOINT = POSTS_PATH + "/{id}";
+    public static final String CLAP_POST_ENDPOINT = POSTS_PATH + "/{id}/clap";
+    
+    // Email-specific endpoints
+    public static final String SEND_MAGIC_LINK_ENDPOINT = EMAIL_PATH + "/magic-link";
+    public static final String VALIDATE_MAGIC_LINK_ENDPOINT = EMAIL_PATH + "/magic-link/validate/{token}";
+    public static final String GET_EMAIL_FROM_TOKEN_ENDPOINT = EMAIL_PATH + "/magic-link/email/{token}";
+    
+    // HTTP Methods (for reference)
+    public static final String GET = "GET";
+    public static final String POST = "POST";
+    public static final String PUT = "PUT";
+    public static final String DELETE = "DELETE";
+    public static final String PATCH = "PATCH";
+    
+    // Common HTTP Headers
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+    public static final String CONTENT_TYPE_HEADER = "Content-Type";
+    public static final String ACCEPT_HEADER = "Accept";
+    
+    // Content Types
+    public static final String APPLICATION_JSON = "application/json";
+    public static final String APPLICATION_XML = "application/xml";
+    
+    // Pagination Constants
+    public static final String PAGE_PARAM = "page";
+    public static final String SIZE_PARAM = "size";
+    public static final String SORT_PARAM = "sort";
+    public static final int DEFAULT_PAGE_SIZE = 20;
+    public static final int MAX_PAGE_SIZE = 100;
+    
+    // Security Constants
+    public static final String BEARER_PREFIX = "Bearer ";
+    public static final String ROLE_PREFIX = "ROLE_";
+    
+    // Cache Names
+    public static final String USERS_CACHE = "users";
+    public static final String POSTS_CACHE = "posts";
+    public static final String CLAPS_CACHE = "claps";
+    public static final String AUTH_CACHE = "auth";
+} 

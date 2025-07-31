@@ -1,5 +1,6 @@
 package com.codehacks.user.controller;
 
+import com.codehacks.util.Constants;
 import com.codehacks.user.dto.UserResponse;
 import com.codehacks.user.dto.UserUpdateRequest;
 import com.codehacks.user.model.User;
@@ -25,7 +26,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping(Constants.USERS_PATH)
 @RequiredArgsConstructor
 @Slf4j
 public class UserController {

@@ -1,5 +1,6 @@
 package com.codehacks.config;
 
+import com.codehacks.util.Constants;
 import com.codehacks.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -45,10 +46,10 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
-                                "/api/auth/**", // Allow all auth endpoints (login, register, magic link)
-                                "/api/v1/posts", // Allow public access to get all posts
-                                "/api/v1/posts/{id}", // Allow public access to get single post (refine for drafts)
-                                "/api/v1/posts/{id}/claps/count", // Allow public access to clap count
+                                Constants.AUTH_PATH + "/**", // Allow all auth endpoints (login, register, magic link)
+                                Constants.POSTS_PATH, // Allow public access to get all posts
+                                Constants.POSTS_PATH + "/{id}", // Allow public access to get single post (refine for drafts)
+                                Constants.POSTS_PATH + "/{id}/claps/count", // Allow public access to clap count
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
