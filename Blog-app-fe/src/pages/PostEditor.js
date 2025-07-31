@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { PlusCircle, Save } from 'lucide-react';
 import ImageUpload from '../components/ImageUpload';
@@ -18,14 +18,7 @@ const PostEditor = ({ onNavigate, postId = null }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Load existing post data if editing
-  useEffect(() => {
-    if (isEditMode && postId) {
-      loadPost();
-    }
-  }, [postId, isEditMode]);
-
-  const loadPost = async () => {
+  const loadPost = useCallback(async () => {
     try {
       setIsLoading(true);
       const post = await apiService.getPost(postId);
@@ -40,7 +33,14 @@ const PostEditor = ({ onNavigate, postId = null }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [postId]);
+
+  // Load existing post data if editing
+  useEffect(() => {
+    if (isEditMode && postId) {
+      loadPost();
+    }
+  }, [isEditMode, postId, loadPost]);
 
   // Restrict access
   useEffect(() => {
