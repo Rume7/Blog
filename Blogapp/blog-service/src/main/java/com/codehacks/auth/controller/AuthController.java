@@ -1,5 +1,6 @@
 package com.codehacks.auth.controller;
 
+import com.codehacks.util.Constants;
 import com.codehacks.auth.dto.LoginRequest;
 import com.codehacks.auth.service.AuthService;
 import com.codehacks.user.dto.UserCreateRequest;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(Constants.AUTH_PATH)
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
