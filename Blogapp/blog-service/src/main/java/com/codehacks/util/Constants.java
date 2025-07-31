@@ -18,6 +18,7 @@ public final class Constants {
     public static final String AUTH_PATH = API_V1 + "/auth";
     public static final String USERS_PATH = API_V1 + "/users";
     public static final String EMAIL_PATH = API_V1 + "/email";
+    public static final String SUBSCRIPTIONS_PATH = API_V1 + "/subscriptions";
     
     // Auth-specific endpoints
     public static final String LOGIN_ENDPOINT = AUTH_PATH + "/login";
@@ -40,6 +41,16 @@ public final class Constants {
     public static final String SEND_MAGIC_LINK_ENDPOINT = EMAIL_PATH + "/magic-link";
     public static final String VALIDATE_MAGIC_LINK_ENDPOINT = EMAIL_PATH + "/magic-link/validate/{token}";
     public static final String GET_EMAIL_FROM_TOKEN_ENDPOINT = EMAIL_PATH + "/magic-link/email/{token}";
+    
+    // Subscription-specific endpoints
+    public static final String SUBSCRIBE_ENDPOINT = SUBSCRIPTIONS_PATH;
+    public static final String VERIFY_SUBSCRIPTION_ENDPOINT = SUBSCRIPTIONS_PATH + "/verify/{token}";
+    public static final String UNSUBSCRIBE_ENDPOINT = SUBSCRIPTIONS_PATH + "/{token}";
+    public static final String UPDATE_PREFERENCES_ENDPOINT = SUBSCRIPTIONS_PATH + "/{token}/preferences";
+    public static final String GET_SUBSCRIPTION_BY_EMAIL_ENDPOINT = SUBSCRIPTIONS_PATH + "/email/{email}";
+    public static final String GET_SUBSCRIPTION_BY_TOKEN_ENDPOINT = SUBSCRIPTIONS_PATH + "/{token}";
+    public static final String GET_ALL_SUBSCRIPTIONS_ENDPOINT = SUBSCRIPTIONS_PATH;
+    public static final String GET_SUBSCRIPTION_STATISTICS_ENDPOINT = SUBSCRIPTIONS_PATH + "/statistics";
     
     // HTTP Methods (for reference)
     public static final String GET = "GET";

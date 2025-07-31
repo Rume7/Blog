@@ -50,6 +50,9 @@ public class SecurityConfig {
                                 Constants.POSTS_PATH, // Allow public access to get all posts
                                 Constants.POSTS_PATH + "/{id}", // Allow public access to get single post (refine for drafts)
                                 Constants.POSTS_PATH + "/{id}/claps/count", // Allow public access to clap count
+                                Constants.SUBSCRIPTIONS_PATH, // Allow public access to subscribe
+                                Constants.SUBSCRIPTIONS_PATH + "/verify/**", // Allow public access to verify subscription
+                                Constants.SUBSCRIPTIONS_PATH + "/{token}", // Allow public access to unsubscribe and get subscription
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
