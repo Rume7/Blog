@@ -20,6 +20,7 @@ public final class Constants {
     public static final String EMAIL_PATH = API_V1 + "/email";
     public static final String SUBSCRIPTIONS_PATH = API_V1 + "/subscriptions";
     public static final String COMMENTS_PATH = API_V1 + "/comments";
+    public static final String IMAGES_PATH = API_V1 + "/images";
     
     // Auth-specific endpoints
     public static final String LOGIN_ENDPOINT = AUTH_PATH + "/login";
@@ -74,6 +75,17 @@ public final class Constants {
     public static final String COUNT_COMMENTS_BY_STATUS_ENDPOINT = COMMENTS_PATH + "/count/status/{status}";
     public static final String COUNT_COMMENTS_BY_POST_ENDPOINT = COMMENTS_PATH + "/count/post/{postId}";
     
+    // Image-specific endpoints
+    public static final String UPLOAD_IMAGE_ENDPOINT = IMAGES_PATH + "/upload";
+    public static final String UPLOAD_PROFILE_PICTURE_ENDPOINT = IMAGES_PATH + "/profile-picture";
+    public static final String GET_IMAGE_BY_ID_ENDPOINT = IMAGES_PATH + "/{id}"; // Public for featured images only
+    public static final String GET_IMAGE_FILE_ENDPOINT = IMAGES_PATH + "/{id}/file"; // Public for featured images only
+    public static final String GET_USER_PROFILE_PICTURE_ENDPOINT = IMAGES_PATH + "/profile/{userId}"; // Authenticated users only
+    public static final String GET_IMAGES_BY_TYPE_ENDPOINT = IMAGES_PATH + "/type/{imageType}";
+    public static final String GET_ALL_IMAGES_ENDPOINT = IMAGES_PATH;
+    public static final String GET_USER_IMAGE_STATS_ENDPOINT = IMAGES_PATH + "/user/{uploaderId}/stats";
+    public static final String GET_IMAGE_TYPE_STATS_ENDPOINT = IMAGES_PATH + "/type/{imageType}/stats";
+    
     // HTTP Methods (for reference)
     public static final String GET = "GET";
     public static final String POST = "POST";
@@ -107,4 +119,5 @@ public final class Constants {
     public static final String CLAPS_CACHE = "claps";
     public static final String AUTH_CACHE = "auth";
     public static final String COMMENTS_CACHE = "comments";
+    public static final String IMAGES_CACHE = "images";
 } 

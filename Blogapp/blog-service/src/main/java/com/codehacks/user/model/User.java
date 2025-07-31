@@ -55,6 +55,13 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
+    // Profile picture fields - direct storage instead of reference
+    @Column(name = "profile_picture_url")
+    private String profilePictureUrl; // URL/path to the profile picture
+
+    @Column(name = "profile_picture_filename")
+    private String profilePictureFilename; // Original filename
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Return a list of authorities (roles) for the user
