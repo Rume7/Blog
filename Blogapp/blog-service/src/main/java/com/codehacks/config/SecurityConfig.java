@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/open-api.yml"
                         ).permitAll()
                         .requestMatchers(
-                                Constants.COMMENTS_PATH + "/**" // All other comment endpoints require authentication
+                                Constants.COMMENTS_PATH + "/**", // All other comment endpoints require authentication
+                                Constants.IMAGES_PATH + "/**" // All other image endpoints require authentication
                         ).hasAnyRole("USER", "ADMIN", "MODERATOR")
                         .anyRequest().authenticated()
                 )

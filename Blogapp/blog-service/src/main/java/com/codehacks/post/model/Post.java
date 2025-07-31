@@ -47,7 +47,10 @@ public class Post {
     private PostStatus status; // DRAFT, PUBLISHED
 
     @Column(name = "image_url")
-    private String imageUrl;
+    private String imageUrl; // Legacy field for backward compatibility
+
+    @Column(name = "featured_image_id")
+    private Long featuredImageId; // Reference to the featured image
 
     @Column(name = "claps_count", nullable = false)
     private int clapsCount = 0;
