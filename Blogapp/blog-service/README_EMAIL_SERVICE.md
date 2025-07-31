@@ -15,25 +15,6 @@ The Email Service provides a complete magic link authentication system for the B
 - ✅ **Error Handling**: Proper exception handling
 - ✅ **Testing**: Full test coverage
 
-## Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   AuthService   │───▶│   EmailService   │───▶│  JavaMailSender │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       ▼                       │
-         │              ┌──────────────────┐             │
-         │              │ MagicLinkToken   │             │
-         │              │   Repository     │             │
-         │              └──────────────────┘             │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  AuthController │    │  MagicLinkToken  │    │   Email Server  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
 ## Components
 
 ### 1. EmailService
@@ -43,20 +24,7 @@ Main service class that orchestrates the magic link process:
 - `getEmailFromToken()` - Retrieves email associated with a token
 - `cleanupExpiredTokens()` - Removes expired tokens
 
-### 2. MagicLinkToken Entity
-JPA entity for storing magic link tokens:
-- Unique token string
-- Email association
-- Creation and expiration timestamps
-- Usage tracking
-
-### 3. EmailTemplateService
-Generates email content with proper formatting:
-- Magic link emails
-- Welcome emails
-- Password reset emails
-
-### 4. EmailCleanupScheduler
+### 2. EmailCleanupScheduler
 Scheduled task that runs every hour to clean up expired tokens.
 
 ## Configuration
@@ -121,38 +89,10 @@ The email service includes comprehensive tests:
 - Error scenario testing
 - Token validation testing
 
-Run tests with:
-```bash
-mvn test -Dtest=EmailServiceTest
-```
-
-## Monitoring
-
-The service includes detailed logging:
-- INFO level for successful operations
-- WARN level for validation failures
-- ERROR level for exceptions
-- DEBUG level for detailed operations
 
 ## Future Enhancements
 
-- [ ] HTML email templates
 - [ ] Email queue for high-volume scenarios
 - [ ] Rate limiting per email address
 - [ ] Email delivery tracking
 - [ ] Multiple email provider support
-- [ ] Email templates customization via admin panel
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Email not sending**: Check SMTP configuration and credentials
-2. **Token validation failing**: Check database connection and token expiration
-3. **Cleanup not working**: Verify scheduling is enabled with `@EnableScheduling`
-
-### Logs to Monitor
-
-- `EmailService` logs for email operations
-- `EmailCleanupScheduler` logs for cleanup operations
-- Database connection logs for token operations 

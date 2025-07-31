@@ -1,28 +1,15 @@
-# 📧 Email Service Module - Implementation Summary
+## 📧 Email Service Module - Implementation Summary
 
-## 🏗️ **Architecture Overview**
+### 🔄 **Usage Patterns**
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    BlogApp Multi-Module Project             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │   blog-service  │  │  email-service  │  │  blog-spec   │ │
-│  │   (Main App)    │  │  (Reusable)     │  │  (API Spec)  │ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## 🔄 **Usage Patterns**
-
-### **1. As a Standalone Microservice**
+#### **1. As a Standalone Microservice**
 ```bash
 # Run independently
 cd email-service
 mvn spring-boot:run
 ```
 
-## 🌐 **REST API Endpoints**
+### 🌐 **REST API Endpoints**
 
 The email service module provides a complete REST API:
 
@@ -129,31 +116,6 @@ curl http://localhost:8080/api/v1/email/health
 | **Single Use** | Tokens marked as used after validation |
 | **Token Masking** | Secure logging with masked tokens |
 | **Database Storage** | Persistent token tracking |
-
-## 📈 **Scalability Benefits**
-
-### **Independent Scaling**
-```yaml
-# Scale email operations independently
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: email-service
-spec:
-  replicas: 2  # Scale email service to 2 instances
-```
-
-### **Resource Optimization**
-```yaml
-# Dedicated resources for email operations
-resources:
-  requests:
-    memory: "512Mi"
-    cpu: "250m"
-  limits:
-    memory: "1Gi"
-    cpu: "500m"
-```
 
 ## 🔄 **Future Enhancements**
 
