@@ -15,6 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -48,27 +49,18 @@ class EmailNotificationServiceImplTest {
     }
 
     @Test
-    void shouldSendVerificationEmailSuccessfully() {
-        // Given
-        doNothing().when(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
-
-        // When
-        emailNotificationService.sendVerificationEmail(testSubscription);
-
-        // Then
-        verify(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
-    }
-
-    @Test
     void shouldSendWelcomeEmailSuccessfully() {
         // Given
-        doNothing().when(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
+        doNothing().when(emailServiceClient).sendSubscriptionWelcomeEmail(anyString(), anyString());
 
         // When
         emailNotificationService.sendWelcomeEmail(testSubscription);
 
         // Then
-        verify(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
+        verify(emailServiceClient).sendSubscriptionWelcomeEmail(
+            testSubscription.getEmail(),
+            "http://localhost:3000"
+        );
     }
 
     @Test
@@ -120,31 +112,17 @@ class EmailNotificationServiceImplTest {
     }
 
     @Test
-    void shouldHandleEmailServiceException() {
-        // Given
-        doThrow(new RuntimeException("Email service unavailable"))
-                .when(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
-
-        // When & Then
-        assertThatThrownBy(() -> emailNotificationService.sendVerificationEmail(testSubscription))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Failed to send verification email");
-
-        verify(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
-    }
-
-    @Test
     void shouldHandleWelcomeEmailException() {
         // Given
         doThrow(new RuntimeException("Email service unavailable"))
-                .when(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
+                .when(emailServiceClient).sendSubscriptionWelcomeEmail(anyString(), anyString());
 
         // When & Then
         assertThatThrownBy(() -> emailNotificationService.sendWelcomeEmail(testSubscription))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Failed to send welcome email");
 
-        verify(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
+        verify(emailServiceClient).sendSubscriptionWelcomeEmail(anyString(), anyString());
     }
 
     @Test

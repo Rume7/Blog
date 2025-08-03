@@ -18,7 +18,7 @@ public interface MagicLinkTokenRepository extends JpaRepository<MagicLinkToken, 
     
     @Modifying
     @Query("DELETE FROM MagicLinkToken t WHERE t.expiresAt < ?1")
-    long deleteByExpiresAtBefore(LocalDateTime expiresAt);
+    void deleteByExpiresAtBefore(LocalDateTime expiresAt);
     
     @Modifying
     @Query("DELETE FROM MagicLinkToken t WHERE t.email = ?1 AND t.used = false")

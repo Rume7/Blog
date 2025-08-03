@@ -1,20 +1,61 @@
-import React, { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import PostCard from '../components/PostCard';
 import NewsletterSignup from '../components/NewsletterSignup';
-import { mockPosts } from '../mockData';
+import apiService from '../services/api';
 
 // Post List Component (Home Page)
-const PostList = ({ onNavigate, searchTerm }) => { // searchTerm passed as prop
-  const { user } = useContext(AuthContext);
+const PostList = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filteredPosts = mockPosts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          post.author.toLowerCase().includes(searchTerm.toLowerCase());
-    const isVisible = post.status === 'PUBLISHED' || (user && (user.role === 'ADMIN' || user.id === post.authorId));
-    return matchesSearch && isVisible;
-  });
+  const searchTerm = searchParams.get('search') || '';
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        const response = await apiService.getPosts(0, 50, searchTerm);
+        setPosts(response.content || response);
+      } catch (error) {
+        console.error('Failed to fetch posts:', error);
+        setError('Failed to load posts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [searchTerm]);
+
+  const handleStartReading = () => {
+    if (isAuthenticated) {
+      navigate('/');
+    } else {
+      navigate('/register');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading posts...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-red-600">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <main>
@@ -29,7 +70,7 @@ const PostList = ({ onNavigate, searchTerm }) => { // searchTerm passed as prop
               Discover stories, thinking, and expertise from writers on any topic.
             </p>
             <button
-              onClick={() => onNavigate('register')}
+              onClick={handleStartReading}
               className="bg-white text-green-600 px-6 py-3 rounded-full text-lg font-semibold hover:bg-gray-100 transition duration-200 shadow-lg"
             >
               Start reading
@@ -51,12 +92,14 @@ const PostList = ({ onNavigate, searchTerm }) => { // searchTerm passed as prop
         <NewsletterSignup />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPosts.length > 0 ? (
-            filteredPosts.map(post => (
-              <PostCard key={post.id} post={post} onNavigate={onNavigate} />
+          {posts.length > 0 ? (
+            posts.map(post => (
+              <PostCard key={post.id} post={post} />
             ))
           ) : (
-            <p className="col-span-full text-center text-gray-600 text-lg">No posts found.</p>
+            <p className="col-span-full text-center text-gray-600 text-lg">
+              {searchTerm ? 'No posts found matching your search.' : 'No posts available.'}
+            </p>
           )}
         </div>
       </div>

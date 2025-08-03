@@ -1,5 +1,6 @@
 package com.codehacks.user.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -50,6 +51,7 @@ public class User implements UserDetails {
 
     // Password can be null for magic link users, or hashed for traditional login
     @Column(nullable = true)
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -63,12 +65,14 @@ public class User implements UserDetails {
     private String profilePictureFilename; // Original filename
 
     @Override
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Return a list of authorities (roles) for the user
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     @Override
+    @JsonIgnore
     public String getPassword() {
         return password;
     }
@@ -81,6 +85,7 @@ public class User implements UserDetails {
         return email;
     }
 
+    @JsonIgnore
     public String getDisplayName() {
         return this.username;
     }
@@ -88,26 +93,31 @@ public class User implements UserDetails {
     /**
      * Get the actual username field value (not the email-based username for Spring Security)
      */
+    @JsonIgnore
     public String getActualUsername() {
         return this.username;
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonExpired() {
         return true; // For simplicity, accounts never expire
     }
 
     @Override
+    @JsonIgnore
     public boolean isAccountNonLocked() {
         return true; // For simplicity, accounts are never locked
     }
 
     @Override
+    @JsonIgnore
     public boolean isCredentialsNonExpired() {
         return true; // For simplicity, credentials never expire
     }
 
     @Override
+    @JsonIgnore
     public boolean isEnabled() {
         return true; // For simplicity, accounts are always enabled
     }

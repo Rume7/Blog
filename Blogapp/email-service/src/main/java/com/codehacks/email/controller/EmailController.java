@@ -45,6 +45,24 @@ public class EmailController {
     }
 
     /**
+     * Sends a subscription welcome email
+     */
+    @PostMapping("/subscription/welcome")
+    public ResponseEntity<String> sendSubscriptionWelcomeEmail(
+            @RequestParam String email,
+            @RequestParam(required = false) String blogUrl) {
+        try {
+            log.info("Subscription welcome email request received for: {}", email);
+            emailService.sendSubscriptionWelcomeEmail(email, blogUrl);
+            return ResponseEntity.ok("Subscription welcome email sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send subscription welcome email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to send subscription welcome email: " + e.getMessage());
+        }
+    }
+
+    /**
      * Validates a magic link token and returns true if valid
      */
     @GetMapping("/validate-token")

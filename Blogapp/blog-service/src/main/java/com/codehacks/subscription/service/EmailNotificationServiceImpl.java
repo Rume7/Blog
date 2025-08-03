@@ -22,44 +22,12 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
     private String blogName;
 
     @Override
-    public void sendVerificationEmail(Subscription subscription) {
-        try {
-            log.info("Sending verification email to: {}", subscription.getEmail());
-
-            String verificationUrl = baseUrl + "/verify-subscription?token=" + subscription.getToken();
-            
-            String subject = "Verify your subscription to " + blogName;
-            String content = buildVerificationEmailContent(subscription, verificationUrl);
-
-            // Use the existing email service client
-            MagicLinkEmailRequest request = new MagicLinkEmailRequest(
-                    subscription.getEmail(), 
-                    "subscription-verification"
-            );
-
-            emailServiceClient.sendMagicLinkEmail(request);
-            
-            log.info("Verification email sent successfully to: {}", subscription.getEmail());
-        } catch (Exception e) {
-            log.error("Failed to send verification email to: {}", subscription.getEmail(), e);
-            throw new RuntimeException("Failed to send verification email", e);
-        }
-    }
-
-    @Override
     public void sendWelcomeEmail(Subscription subscription) {
         try {
             log.info("Sending welcome email to: {}", subscription.getEmail());
 
-            String subject = "Welcome to " + blogName + "!";
-            String content = buildWelcomeEmailContent(subscription);
-
-            MagicLinkEmailRequest request = new MagicLinkEmailRequest(
-                    subscription.getEmail(), 
-                    "welcome"
-            );
-
-            emailServiceClient.sendMagicLinkEmail(request);
+            // Use the new subscription welcome email endpoint
+            emailServiceClient.sendSubscriptionWelcomeEmail(subscription.getEmail(), baseUrl);
             
             log.info("Welcome email sent successfully to: {}", subscription.getEmail());
         } catch (Exception e) {
@@ -73,6 +41,8 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
         try {
             log.info("Sending unsubscribe confirmation email to: {}", subscription.getEmail());
 
+            // For now, use a simple text email since we don't have a template for this
+            // In a production system, you'd want to create a proper template
             String subject = "Unsubscribed from " + blogName;
             String content = buildUnsubscribeEmailContent(subscription);
 
@@ -156,76 +126,83 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
         }
     }
 
-    private String buildVerificationEmailContent(Subscription subscription, String verificationUrl) {
-        return String.format("""
-            <html>
-            <body>
-                <h2>Welcome to %s!</h2>
-                <p>Hi there,</p>
-                <p>Thank you for subscribing to our blog! To complete your subscription and start receiving updates, please click the link below:</p>
-                <p><a href="%s">Verify Your Subscription</a></p>
-                <p>If you didn't request this subscription, you can safely ignore this email.</p>
-                <p>Best regards,<br>The %s Team</p>
-            </body>
-            </html>
-            """, blogName, verificationUrl, blogName);
-    }
-
+    // Content building methods
     private String buildWelcomeEmailContent(Subscription subscription) {
         return String.format("""
-            <html>
-            <body>
-                <h2>Welcome to %s!</h2>
-                <p>Hi there,</p>
-                <p>Your subscription has been successfully verified! You're now subscribed to receive updates from our blog.</p>
-                <p>You'll receive notifications based on your preference: <strong>%s</strong></p>
-                <p>If you ever want to change your preferences or unsubscribe, you can do so by clicking the unsubscribe link in any of our emails.</p>
-                <p>Happy reading!<br>The %s Team</p>
-            </body>
-            </html>
-            """, blogName, subscription.getNotificationType().name(), blogName);
+            Hello there,
+            
+            🎉 Congratulations! Your subscription to our newsletter has been successfully verified!
+            
+            You're now part of our community and will receive our weekly newsletter with the latest blog posts, insights, and updates.
+            
+            What to expect:
+            - Weekly digest of our latest blog posts
+            - Exclusive content and insights
+            - Tips and best practices
+            - Community highlights and updates
+            
+            Your first newsletter will arrive in your inbox soon. In the meantime, feel free to explore our blog!
+            
+            Best regards,
+            The %s Team
+            """, 
+            blogName
+        );
     }
 
     private String buildUnsubscribeEmailContent(Subscription subscription) {
         return String.format("""
-            <html>
-            <body>
-                <h2>Unsubscribed Successfully</h2>
-                <p>Hi there,</p>
-                <p>You have been successfully unsubscribed from %s.</p>
-                <p>We're sorry to see you go! If you change your mind, you can always subscribe again by visiting our website.</p>
-                <p>Thank you for being part of our community!<br>The %s Team</p>
-            </body>
-            </html>
-            """, blogName, blogName);
+            Hello there,
+            
+            You have been successfully unsubscribed from our newsletter.
+            
+            We're sorry to see you go! If you change your mind, you can always subscribe again by visiting our blog.
+            
+            Best regards,
+            The %s Team
+            """, 
+            blogName
+        );
     }
 
     private String buildNewPostNotificationContent(Subscription subscription, String postTitle, String postUrl) {
         return String.format("""
-            <html>
-            <body>
-                <h2>New Post Available!</h2>
-                <p>Hi there,</p>
-                <p>A new post has been published on %s:</p>
-                <h3><a href="%s">%s</a></h3>
-                <p>Click the link above to read the full post.</p>
-                <p>Happy reading!<br>The %s Team</p>
-            </body>
-            </html>
-            """, blogName, postUrl, postTitle, blogName);
+            Hello there,
+            
+            We just published a new blog post that we think you'll enjoy!
+            
+            Title: %s
+            
+            Read it here: %s
+            
+            Happy reading!
+            
+            Best regards,
+            The %s Team
+            """, 
+            postTitle,
+            postUrl,
+            blogName
+        );
     }
 
     private String buildDigestEmailContent(Subscription subscription, String digestType, String digestContent) {
         return String.format("""
-            <html>
-            <body>
-                <h2>%s Digest - %s</h2>
-                <p>Hi there,</p>
-                <p>Here's your %s digest of new posts from %s:</p>
-                %s
-                <p>Happy reading!<br>The %s Team</p>
-            </body>
-            </html>
-            """, digestType, blogName, digestType.toLowerCase(), blogName, digestContent, blogName);
+            Hello there,
+            
+            Here's your %s digest from %s:
+            
+            %s
+            
+            Happy reading!
+            
+            Best regards,
+            The %s Team
+            """, 
+            digestType,
+            blogName,
+            digestContent,
+            blogName
+        );
     }
 } 

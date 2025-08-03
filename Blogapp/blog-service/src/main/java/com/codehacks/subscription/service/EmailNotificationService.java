@@ -8,11 +8,6 @@ import com.codehacks.subscription.model.Subscription;
 public interface EmailNotificationService {
 
     /**
-     * Send verification email to new subscriber
-     */
-    void sendVerificationEmail(Subscription subscription);
-
-    /**
      * Send welcome email after verification
      */
     void sendWelcomeEmail(Subscription subscription);

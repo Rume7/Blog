@@ -96,7 +96,6 @@ class SubscriptionIntegrationTest {
         objectMapper.findAndRegisterModules(); // Enable LocalDateTime support
         
         // Mock email service to avoid actual email sending
-        doNothing().when(emailNotificationService).sendVerificationEmail(any());
         doNothing().when(emailNotificationService).sendWelcomeEmail(any());
         doNothing().when(emailNotificationService).sendUnsubscribeConfirmationEmail(any());
         
@@ -121,9 +120,9 @@ class SubscriptionIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("integration@example.com"))
-                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.notificationType").value("INSTANT"))
-                .andExpect(jsonPath("$.emailVerified").value(false))
+                .andExpect(jsonPath("$.emailVerified").value(true))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -131,18 +130,9 @@ class SubscriptionIntegrationTest {
         SubscriptionResponse response = objectMapper.readValue(responseJson, SubscriptionResponse.class);
         String token = response.getToken();
 
-        // Then - Verify subscription exists in database
+        // Then - Verify subscription exists in database and is already active
         assertThat(subscriptionRepository.findByEmail("integration@example.com")).isPresent();
         assertThat(subscriptionRepository.findByToken(token)).isPresent();
-
-        // When - Verify subscription
-        mockMvc.perform(get("/api/v1/subscriptions/verify/" + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("integration@example.com"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.emailVerified").value(true));
-
-        // Then - Verify subscription is now active
         assertThat(subscriptionRepository.findByEmail("integration@example.com"))
                 .isPresent()
                 .hasValueSatisfying(sub -> {
@@ -174,7 +164,7 @@ class SubscriptionIntegrationTest {
 
         // Then - Verify only one subscription exists
         assertThat(subscriptionRepository.findByEmail("duplicate@example.com")).isPresent();
-        assertThat(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.PENDING)).isEqualTo(1);
+        assertThat(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.ACTIVE)).isEqualTo(1);
     }
 
     @Test
@@ -196,11 +186,7 @@ class SubscriptionIntegrationTest {
         SubscriptionResponse response = objectMapper.readValue(responseJson, SubscriptionResponse.class);
         String token = response.getToken();
 
-        // Verify subscription
-        mockMvc.perform(get("/api/v1/subscriptions/verify/" + token))
-                .andExpect(status().isOk());
-
-        // When - Update preferences
+        // When - Update preferences (subscription is already active)
         mockMvc.perform(put("/api/v1/subscriptions/" + token + "/preferences")
                         .param("notificationType", "DAILY"))
                 .andExpect(status().isOk())
@@ -233,11 +219,7 @@ class SubscriptionIntegrationTest {
         SubscriptionResponse response = objectMapper.readValue(responseJson, SubscriptionResponse.class);
         String token = response.getToken();
 
-        // Verify subscription
-        mockMvc.perform(get("/api/v1/subscriptions/verify/" + token))
-                .andExpect(status().isOk());
-
-        // When - Unsubscribe
+        // When - Unsubscribe (subscription is already active)
         mockMvc.perform(delete("/api/v1/subscriptions/" + token))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Successfully unsubscribed"));
@@ -264,8 +246,8 @@ class SubscriptionIntegrationTest {
 
         // Then
         assertThat(statistics.getTotalSubscriptions()).isEqualTo(3);
-        assertThat(statistics.getTotalPending()).isEqualTo(3);
-        assertThat(statistics.getTotalActive()).isEqualTo(0);
+        assertThat(statistics.getTotalPending()).isEqualTo(0);
+        assertThat(statistics.getTotalActive()).isEqualTo(3);
         assertThat(statistics.getTotalInactive()).isEqualTo(0);
     }
 
@@ -305,7 +287,6 @@ class SubscriptionIntegrationTest {
 
         SubscriptionResponse response = subscriptionService.createSubscription(request);
         String token = response.getToken();
-        subscriptionService.verifySubscription(token);
 
         Subscription subscription = subscriptionRepository.findByToken(token).orElseThrow();
 

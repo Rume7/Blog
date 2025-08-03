@@ -25,20 +25,47 @@ class ApiService {
   }
 
   // Authentication endpoints
-  async login(email, password) {
-    const response = await fetch(`${this.baseURL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    const data = await this.handleResponse(response);
-    if (data.token) {
-      localStorage.setItem('authToken', data.token);
+  async login(email) {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData);
+      }
+
+      const result = await response.text();
+      return { success: true, message: result };
+    } catch (error) {
+      throw new Error(`Login failed: ${error.message}`);
     }
-    return data;
+  }
+
+  async verifyMagicLink(token) {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/verify-magic-link?token=${token}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData);
+      }
+
+      const jwtToken = await response.text();
+      return jwtToken;
+    } catch (error) {
+      throw new Error(`Magic link verification failed: ${error.message}`);
+    }
   }
 
   async register(userData) {

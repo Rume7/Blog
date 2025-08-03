@@ -41,19 +41,20 @@ public class SubscriptionService {
             throw new IllegalArgumentException("Email is already subscribed: " + request.getEmail());
         }
 
-        // Create new subscription
+        // Create new subscription - immediately active, no verification needed
         Subscription subscription = Subscription.builder()
                 .email(request.getEmail())
                 .notificationType(request.getNotificationType())
-                .status(SubscriptionStatus.PENDING)
-                .emailVerified(false)
+                .status(SubscriptionStatus.ACTIVE)
+                .emailVerified(true)
                 .active(true)
+                .verifiedAt(LocalDateTime.now())
                 .build();
 
         subscription = subscriptionRepository.save(subscription);
 
-        // Send verification email
-        emailNotificationService.sendVerificationEmail(subscription);
+        // Send welcome email immediately (no verification needed)
+        emailNotificationService.sendWelcomeEmail(subscription);
 
         log.info("Subscription created successfully for email: {}", request.getEmail());
         return SubscriptionResponse.fromSubscription(subscription);
