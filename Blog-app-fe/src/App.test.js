@@ -1,6 +1,22 @@
 import { render } from '@testing-library/react';
 import App from './App';
 
+// Mock the AuthContext to avoid authentication issues in tests
+jest.mock('./context/AuthContext', () => ({
+  AuthProvider: ({ children }) => children,
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    loading: false,
+    login: jest.fn(),
+    logout: jest.fn(),
+    register: jest.fn(),
+    updateProfile: jest.fn(),
+    verifyMagicLink: jest.fn(),
+    magicLinkSent: false,
+  }),
+}));
+
 // Simplest test: just checks if the App component renders without throwing an error
 test('App renders without crashing', () => {
   render(<App />);
