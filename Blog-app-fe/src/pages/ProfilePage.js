@@ -1,269 +1,209 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import { User, Camera, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import ImageUpload from '../components/ImageUpload';
 
-// Profile Page
-const ProfilePage = ({ onNavigate }) => {
-  const { user, updateProfile } = useContext(AuthContext);
-  const [profileData, setProfileData] = useState({
-    firstName: '',
-    lastName: '',
-    bio: '',
-    website: '',
-  });
-  const [profilePicture, setProfilePicture] = useState('');
+// Profile Page Component
+const ProfilePage = () => {
+  const { user, updateProfile, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    bio: user?.bio || '',
+  });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // Load user profile data
-  useEffect(() => {
-    if (user) {
-      setProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        bio: user.bio || '',
-        website: user.website || '',
-      });
-      setProfilePicture(user.profilePictureUrl || '');
-    }
-  }, [user]);
-
-  const handleImageUploaded = (imageData) => {
-    setProfilePicture(imageData.filePath || imageData.url);
-    setMessage('Profile picture uploaded successfully!');
-    setTimeout(() => setMessage(''), 3000);
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleSaveProfile = async () => {
-    setIsLoading(true);
-    setError('');
-    setMessage('Saving profile...');
-
+  const handleSave = async () => {
     try {
-      const result = await updateProfile({
-        ...profileData,
-        profilePictureUrl: profilePicture,
-      });
-
-      if (result.success) {
-        setMessage('Profile updated successfully!');
-        setIsEditing(false);
-      } else {
-        setError(result.error || 'Failed to update profile');
-      }
-    } catch (err) {
-      setError('Failed to update profile: ' + err.message);
-      console.error('Profile update error:', err);
-    } finally {
-      setIsLoading(false);
+      setError('');
+      setMessage('');
+      await updateProfile(formData);
+      setMessage('Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      setError(error.message);
     }
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      bio: user?.bio || '',
+    });
+    setIsEditing(false);
+    setError('');
+    setMessage('');
   };
 
   if (!user) {
     return (
-      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center text-center text-gray-700">
-        <p>Please log in to view your profile.</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading profile...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-200px)] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-8 text-white">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                {profilePicture ? (
-                  <img
-                    src={profilePicture}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center border-4 border-white">
-                    <User size={32} />
-                  </div>
-                )}
+    <main className="max-w-4xl mx-auto px-6 md:px-12 py-8">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
+            >
+              Edit Profile
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700">{error}</p>
+          </div>
+        )}
+
+        {message && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-700">{message}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Profile Picture Section */}
+          <div className="md:col-span-1">
+            <div className="text-center">
+              <div className="relative inline-block">
+                <img
+                  src={user.profilePictureUrl || 'https://placehold.co/150x150/E0E0E0/333333?text=Profile'}
+                  alt="Profile"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+                />
                 {isEditing && (
-                  <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
-                    <Camera size={16} className="text-white" />
+                  <div className="mt-4">
+                    <ImageUpload
+                      onUploadSuccess={(imageData) => {
+                        setMessage('Profile picture updated successfully!');
+                      }}
+                      uploadType="profile"
+                      buttonText="Upload New Picture"
+                    />
                   </div>
                 )}
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">
-                  {profileData.firstName && profileData.lastName 
-                    ? `${profileData.firstName} ${profileData.lastName}`
-                    : user.email
-                  }
-                </h1>
-                <p className="text-green-100">{user.email}</p>
-                <p className="text-sm text-green-200 capitalize">{user.role?.toLowerCase()}</p>
               </div>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
-            {error && (
-              <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            {message && (
-              <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-                {message}
-              </div>
-            )}
-
-            {/* Profile Picture Upload */}
-            {isEditing && (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Profile Picture
-                </label>
-                <ImageUpload
-                  onImageUploaded={handleImageUploaded}
-                  imageType="PROFILE_PICTURE"
-                  currentImageUrl={profilePicture}
-                  altText={`Profile picture for ${user.email}`}
-                  description={`Profile picture for ${user.email}`}
-                  showPreview={false}
-                  className="max-w-xs"
-                />
-              </div>
-            )}
-
-            {/* Profile Form */}
-            <div className="space-y-4">
+          {/* Profile Information Section */}
+          <div className="md:col-span-2">
+            <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     First Name
                   </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={profileData.firstName}
-                    onChange={handleInputChange}
-                    disabled={!isEditing || isLoading}
-                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
-                  />
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={loading}
+                    />
+                  ) : (
+                    <p className="p-3 bg-gray-50 rounded-lg">{user.firstName || 'Not set'}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Last Name
                   </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={profileData.lastName}
-                    onChange={handleInputChange}
-                    disabled={!isEditing || isLoading}
-                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
-                  />
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={loading}
+                    />
+                  ) : (
+                    <p className="p-3 bg-gray-50 rounded-lg">{user.lastName || 'Not set'}</p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-                  Bio
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
                 </label>
-                <textarea
-                  id="bio"
-                  name="bio"
-                  rows="3"
-                  value={profileData.bio}
-                  onChange={handleInputChange}
-                  disabled={!isEditing || isLoading}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
-                  placeholder="Tell us about yourself..."
-                />
+                <p className="p-3 bg-gray-50 rounded-lg">{user.email}</p>
               </div>
 
               <div>
-                <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">
-                  Website
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bio
                 </label>
-                <input
-                  type="url"
-                  id="website"
-                  name="website"
-                  value={profileData.website}
-                  onChange={handleInputChange}
-                  disabled={!isEditing || isLoading}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
-                  placeholder="https://example.com"
-                />
+                {isEditing ? (
+                  <textarea
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tell us about yourself..."
+                    disabled={loading}
+                  />
+                ) : (
+                  <p className="p-3 bg-gray-50 rounded-lg min-h-[100px]">
+                    {user.bio || 'No bio added yet.'}
+                  </p>
+                )}
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="mt-8 flex justify-end space-x-4">
-              <button
-                onClick={() => onNavigate('home')}
-                className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-200"
-                disabled={isLoading}
-              >
-                Back to Home
-              </button>
-              
-              {isEditing ? (
-                <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <p className="p-3 bg-gray-50 rounded-lg capitalize">{user.role?.toLowerCase()}</p>
+              </div>
+
+              {isEditing && (
+                <div className="flex space-x-4 pt-4">
                   <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-200"
-                    disabled={isLoading}
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-200 disabled:opacity-50"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-200 disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200 flex items-center space-x-2 disabled:opacity-50"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        <span>Save Changes</span>
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
-                >
-                  Edit Profile
-                </button>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

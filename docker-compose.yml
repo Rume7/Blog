@@ -8,8 +8,39 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432" # Expose for local development/debugging
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  email-service:
+    build:
+      context: ./Blogapp/email-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      # Database Configuration
+      DATABASE_URL: jdbc:postgresql://db:5432/email_db
+      DATABASE_USERNAME: user
+      DATABASE_PASSWORD: password
+      # Gmail Configuration
+      GMAIL_USERNAME: ${GMAIL_USERNAME}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      # Magic Link Configuration
+      MAGIC_LINK_BASE_URL: http://localhost:3000
+      MAGIC_LINK_EXPIRATION_MINUTES: 15
+    depends_on:
+      - db
+    restart: always
 
   backend:
     build:
@@ -22,16 +53,22 @@ services:
       SPRING_DATASOURCE_USERNAME: user
       SPRING_DATASOURCE_PASSWORD: password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update # Or validate/none for production
-      JWT_SECRET: your_very_secret_jwt_key_that_is_at_least_256_bits_long
-      SPRING_MAIL_HOST: smtp.example.com
+      JWT_SECRET: eWVzX2l0X2lzX3NlY3VyZV9hbmRfYmFzZTY0X2VuY29kZWRfc2VjcmV0X2tleV9mb3Jfand0X3Rva2VuX2dlbmVyYXRpb25fYW5kX3ZlcmlmaWNhdGlvbg==
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Gmail Configuration
+      SPRING_MAIL_HOST: smtp.gmail.com
       SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: your_email@example.com
-      SPRING_MAIL_PASSWORD: your_email_password
+      SPRING_MAIL_USERNAME: ${GMAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${GMAIL_APP_PASSWORD}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
       FRONTEND_URL: http://localhost:3000 # Or your deployed frontend URL
     depends_on:
       - db
+      - redis
+      - email-service
     restart: always
 
   frontend: # New frontend service
@@ -46,3 +83,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

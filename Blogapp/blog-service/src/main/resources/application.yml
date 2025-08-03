@@ -41,15 +41,13 @@ spring:
     show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
-        # Query caching
+        # Query caching - disabled for now due to JCache dependency issues
         cache:
-          use_second_level_cache: true
-          use_query_cache: true
-          region:
-            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          use_second_level_cache: false
+          use_query_cache: false
         # Connection pool optimization
         connection:
-          provider_disables_autocommit: true
+          provider_disables_autocommit: false
         # Batch processing
         jdbc:
           batch_size: 20
@@ -60,12 +58,22 @@ spring:
         # Statistics for monitoring
         generate_statistics: ${GENERATE_STATISTICS:false}
   
+  # Database Connection Pool Configuration
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: false
+  
   # Cache Configuration
   cache:
     type: redis
     redis:
       time-to-live: 600000 # 10 minutes default
-      cache-null-values: false
+      cache-null-values: true
       use-key-prefix: true
       key-prefix: "blogapp:"
 
@@ -77,7 +85,7 @@ app:
   
   # Email Service Configuration
   email-service:
-    base-url: ${EMAIL_SERVICE_BASE_URL:http://localhost:8081}
+    base-url: ${EMAIL_SERVICE_BASE_URL:http://email-service:8080}
   
   # Cache Configuration
   cache:

@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class EmailServiceTest {
@@ -187,10 +188,6 @@ class EmailServiceTest {
 
     @Test
     void cleanupExpiredTokens_Success() {
-        // Given
-        when(magicLinkTokenRepository.deleteByExpiresAtBefore(any(LocalDateTime.class)))
-                .thenReturn(5L);
-
         // When
         emailService.cleanupExpiredTokens();
 
@@ -201,8 +198,8 @@ class EmailServiceTest {
     @Test
     void cleanupExpiredTokens_ThrowsException() {
         // Given
-        when(magicLinkTokenRepository.deleteByExpiresAtBefore(any(LocalDateTime.class)))
-                .thenThrow(new RuntimeException("Cleanup error"));
+        doThrow(new RuntimeException("Cleanup error"))
+                .when(magicLinkTokenRepository).deleteByExpiresAtBefore(any(LocalDateTime.class));
 
         // When & Then
         assertDoesNotThrow(() -> emailService.cleanupExpiredTokens());

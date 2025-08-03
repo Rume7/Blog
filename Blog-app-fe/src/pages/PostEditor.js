@@ -1,233 +1,236 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import { PlusCircle, Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import ImageUpload from '../components/ImageUpload';
 import apiService from '../services/api';
 
-// Post Editor Page (for Admin/Author)
-const PostEditor = ({ onNavigate, postId = null }) => {
-  const { user } = useContext(AuthContext);
-  const isEditMode = postId !== null;
-
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [status, setStatus] = useState('DRAFT');
-  const [imageUrl, setImageUrl] = useState('');
-  const [imageId, setImageId] = useState(null);
-  const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+const PostEditor = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [post, setPost] = useState({
+    title: '',
+    content: '',
+    status: 'DRAFT',
+    imageUrl: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const isEditing = !!id;
 
   const loadPost = useCallback(async () => {
+    if (!isEditing) return;
+    
     try {
-      setIsLoading(true);
-      const post = await apiService.getPost(postId);
-      setTitle(post.title || '');
-      setContent(post.content || '');
-      setStatus(post.status || 'DRAFT');
-      setImageUrl(post.featuredImageUrl || '');
-      setImageId(post.featuredImageId || null);
-    } catch (err) {
-      setError('Failed to load post: ' + err.message);
-      console.error('Load post error:', err);
+      setLoading(true);
+      const postData = await apiService.getPost(id);
+      setPost({
+        title: postData.title || '',
+        content: postData.content || '',
+        status: postData.status || 'DRAFT',
+        imageUrl: postData.imageUrl || '',
+      });
+    } catch (error) {
+      console.error('Failed to load post:', error);
+      setError('Failed to load post');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [postId]);
+  }, [id, isEditing]);
 
-  // Load existing post data if editing
   useEffect(() => {
-    if (isEditMode && postId) {
-      loadPost();
-    }
-  }, [isEditMode, postId, loadPost]);
+    loadPost();
+  }, [loadPost]);
 
-  // Restrict access
-  useEffect(() => {
-    if (!user) {
-      onNavigate('login');
-      return;
-    }
-
-    if (user.role !== 'ADMIN' && user.role !== 'MODERATOR') {
-      // Regular users can only create posts, not edit others' posts
-      if (isEditMode) {
-        setError('You are not authorized to edit posts.');
-        onNavigate('home');
-      }
-    }
-  }, [user, isEditMode, onNavigate]);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setPost(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleImageUploaded = (imageData) => {
-    setImageUrl(imageData.filePath || imageData.url);
-    setImageId(imageData.id);
+    setPost(prev => ({
+      ...prev,
+      imageUrl: imageData.filePath || imageData.url
+    }));
     setMessage('Image uploaded successfully!');
     setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    setMessage('Saving post...');
+  const handleSave = async (status = 'DRAFT') => {
+    if (!post.title.trim()) {
+      setError('Title is required');
+      return;
+    }
+
+    if (!post.content.trim()) {
+      setError('Content is required');
+      return;
+    }
 
     try {
+      setSaving(true);
+      setError('');
+      setMessage('');
+
       const postData = {
-        title,
-        content,
+        ...post,
         status,
-        featuredImageId: imageId,
-        featuredImageUrl: imageUrl,
       };
 
-      let response;
-      if (isEditMode) {
-        response = await apiService.updatePost(postId, postData);
-        setMessage('Post updated successfully!');
+      let savedPost;
+      if (isEditing) {
+        savedPost = await apiService.updatePost(id, postData);
       } else {
-        response = await apiService.createPost(postData);
-        setMessage('Post created successfully!');
+        savedPost = await apiService.createPost(postData);
       }
 
-      console.log('Post saved:', response);
-      
+      setMessage(`Post ${isEditing ? 'updated' : 'created'} successfully!`);
       setTimeout(() => {
-        setMessage('');
-        onNavigate('home');
-      }, 1500);
-    } catch (err) {
-      setError('Failed to save post: ' + err.message);
-      console.error('Save post error:', err);
+        navigate(`/posts/${savedPost.id}`);
+      }, 2000);
+    } catch (error) {
+      setError(error.message);
     } finally {
-      setIsLoading(false);
+      setSaving(false);
     }
   };
 
-  if (!user) {
+  const handlePublish = () => {
+    handleSave('PUBLISHED');
+  };
+
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center text-center text-gray-700">
-        <p>Please log in to create or edit posts.</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Please log in to create or edit posts.</div>
       </div>
     );
   }
 
-  if (isLoading && isEditMode) {
+  if (loading) {
     return (
-      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading post...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 md:px-12 py-8">
-      <h1 className="text-3xl font-bold font-serif text-gray-900 mb-6">
-        {isEditMode ? 'Edit Post' : 'Create New Post'}
-      </h1>
-      
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-lg shadow-lg">
+    <main className="max-w-4xl mx-auto px-6 md:px-12 py-8">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isEditing ? 'Edit Post' : 'Create New Post'}
+          </h1>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => handleSave('DRAFT')}
+              disabled={saving}
+              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-200 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Draft'}
+            </button>
+            <button
+              onClick={handlePublish}
+              disabled={saving}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-200 disabled:opacity-50"
+            >
+              {saving ? 'Publishing...' : 'Publish'}
+            </button>
+          </div>
+        </div>
+
         {error && (
-          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-            {error}
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700">{error}</p>
           </div>
         )}
 
         {message && (
-          <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-            {message}
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-700">{message}</p>
           </div>
         )}
 
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            Title *
-          </label>
-          <input
-            type="text"
-            id="title"
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            disabled={isLoading}
-          />
-        </div>
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+              Title
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={post.title}
+              onChange={handleInputChange}
+              disabled={saving}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              placeholder="Enter post title..."
+            />
+          </div>
 
-        <div>
-          <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
-            Content *
-          </label>
-          <textarea
-            id="content"
-            rows="10"
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            disabled={isLoading}
-            placeholder="Write your post content here..."
-          ></textarea>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Featured Image
-          </label>
-          <ImageUpload
-            onImageUploaded={handleImageUploaded}
-            imageType="FEATURED_IMAGE"
-            currentImageUrl={imageUrl}
-            altText={`Featured image for: ${title}`}
-            description={`Featured image for the post "${title}"`}
-            showPreview={true}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <select
-            id="status"
-            className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-          </select>
-        </div>
-
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => onNavigate('home')}
-            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-200"
-            disabled={isLoading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200 flex items-center space-x-2 disabled:opacity-50"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                {isEditMode ? <Save size={20} /> : <PlusCircle size={20} />}
-                <span>{isEditMode ? 'Update Post' : 'Create Post'}</span>
-              </>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Featured Image
+            </label>
+            <ImageUpload
+              onUploadSuccess={handleImageUploaded}
+              uploadType="featured"
+              currentImageUrl={post.imageUrl}
+              buttonText={post.imageUrl ? 'Change Image' : 'Upload Image'}
+            />
+            {post.imageUrl && (
+              <div className="mt-2">
+                <img
+                  src={post.imageUrl}
+                  alt="Featured"
+                  className="w-32 h-32 object-cover rounded-lg"
+                />
+              </div>
             )}
-          </button>
+          </div>
+
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
+              Content
+            </label>
+            <textarea
+              id="content"
+              name="content"
+              value={post.content}
+              onChange={handleInputChange}
+              disabled={saving}
+              rows={15}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              placeholder="Write your post content here..."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              value={post.status}
+              onChange={handleInputChange}
+              disabled={saving}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+            </select>
+          </div>
         </div>
-      </form>
-    </div>
+      </div>
+    </main>
   );
 };
 

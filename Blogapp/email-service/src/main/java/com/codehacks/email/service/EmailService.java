@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.mail.javamail.MimeMessagePreparator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,9 @@ public class EmailService {
 
     @Value("${spring.mail.username}")
     private String fromEmail;
+
+    @Value("${app.blog.name:BlogApp}")
+    private String blogName;
 
     /**
      * Generates and sends a magic link email to the user
@@ -61,6 +66,58 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Failed to send magic link email to: {}", request.email(), e);
             throw new EmailServiceException("Failed to send magic link email", e);
+        }
+    }
+
+    /**
+     * Sends a subscription verification email
+     */
+    public void sendSubscriptionVerificationEmail(String email, String verificationUrl) {
+        try {
+            log.info("Sending subscription verification email to: {}", email);
+            
+            String htmlContent = emailTemplateService.generateSubscriptionVerificationEmailHtmlContent(email, verificationUrl);
+            
+            MimeMessagePreparator messagePreparator = mimeMessage -> {
+                MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+                messageHelper.setFrom(fromEmail);
+                messageHelper.setTo(email);
+                messageHelper.setSubject("Verify Your Newsletter Subscription - " + blogName);
+                messageHelper.setText(htmlContent, true);
+            };
+            
+            mailSender.send(messagePreparator);
+            log.info("Subscription verification email sent successfully to: {}", email);
+            
+        } catch (Exception e) {
+            log.error("Failed to send subscription verification email to: {}", email, e);
+            throw new EmailServiceException("Failed to send subscription verification email", e);
+        }
+    }
+
+    /**
+     * Sends a subscription welcome email
+     */
+    public void sendSubscriptionWelcomeEmail(String email, String blogUrl) {
+        try {
+            log.info("Sending subscription welcome email to: {}", email);
+            
+            String htmlContent = emailTemplateService.generateSubscriptionWelcomeEmailHtmlContent(email, blogUrl);
+            
+            MimeMessagePreparator messagePreparator = mimeMessage -> {
+                MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+                messageHelper.setFrom(fromEmail);
+                messageHelper.setTo(email);
+                messageHelper.setSubject("Welcome to Our Newsletter! - " + blogName);
+                messageHelper.setText(htmlContent, true);
+            };
+            
+            mailSender.send(messagePreparator);
+            log.info("Subscription welcome email sent successfully to: {}", email);
+            
+        } catch (Exception e) {
+            log.error("Failed to send subscription welcome email to: {}", email, e);
+            throw new EmailServiceException("Failed to send subscription welcome email", e);
         }
     }
 
@@ -105,7 +162,7 @@ public class EmailService {
     }
 
     /**
-     * Retrieves the email address associated with a magic link token
+     * Gets the email associated with a magic link token
      */
     public String getEmailFromToken(String token) {
         return magicLinkTokenRepository.findByToken(token)
@@ -120,15 +177,16 @@ public class EmailService {
     public void cleanupExpiredTokens() {
         try {
             LocalDateTime now = LocalDateTime.now();
-            long deletedCount = magicLinkTokenRepository.deleteByExpiresAtBefore(now);
-            log.info("Cleaned up {} expired magic link tokens", deletedCount);
+            magicLinkTokenRepository.deleteByExpiresAtBefore(now);
+            log.info("Cleaned up expired magic link tokens");
         } catch (Exception e) {
             log.error("Error cleaning up expired tokens", e);
         }
     }
 
+    // Private helper methods
     private String generateSecureToken() {
-        return UUID.randomUUID().toString().replace("-", "");
+        return UUID.randomUUID().toString();
     }
 
     private MagicLinkToken createMagicLinkToken(String email, String token) {
@@ -145,31 +203,24 @@ public class EmailService {
     }
 
     private String generateMagicLinkUrl(String token) {
-        return magicLinkBaseUrl + "/auth/verify?token=" + token;
+        return magicLinkBaseUrl + "/login?token=" + token;
     }
 
     private void sendMagicLinkEmail(String toEmail, String magicLinkUrl, String username) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toEmail);
-            message.setSubject("Your Magic Link - BlogApp");
-            
-            String emailContent = emailTemplateService.generateMagicLinkEmailHtmlContent(username, magicLinkUrl);
-            message.setText(emailContent);
-            
-            mailSender.send(message);
-            log.debug("Magic link email sent to: {}", toEmail);
-            
-        } catch (Exception e) {
-            log.error("Failed to send email to: {}", toEmail, e);
-            throw new EmailServiceException("Failed to send email", e);
-        }
+        String htmlContent = emailTemplateService.generateMagicLinkEmailHtmlContent(username, magicLinkUrl);
+        String textContent = emailTemplateService.generateMagicLinkEmailTextContent(username, magicLinkUrl);
+        
+        MimeMessagePreparator messagePreparator = mimeMessage -> {
+            MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            messageHelper.setFrom(fromEmail);
+            messageHelper.setTo(toEmail);
+            messageHelper.setSubject("Sign in to " + blogName);
+            messageHelper.setText(htmlContent, true);
+        };
+        
+        mailSender.send(messagePreparator);
     }
 
-    /**
-     * Masks a token for secure logging (shows only first 4 and last 4 characters)
-     */
     private String maskToken(String token) {
         if (token == null || token.length() < 8) {
             return "***";
