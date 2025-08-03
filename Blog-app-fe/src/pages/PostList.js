@@ -7,7 +7,7 @@ import apiService from '../services/api';
 
 // Post List Component (Home Page)
 const PostList = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);

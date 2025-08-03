@@ -32,7 +32,7 @@ const NewsletterSignup = () => {
         throw new Error(errorData);
       }
 
-      const result = await response.json();
+      await response.json(); // Just consume the response, we don't need the result
       setMessage('Thank you for subscribing! You have been successfully added to our newsletter. Welcome!');
       setEmail('');
     } catch (error) {

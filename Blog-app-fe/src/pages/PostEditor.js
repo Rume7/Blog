@@ -7,7 +7,7 @@ import apiService from '../services/api';
 const PostEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [post, setPost] = useState({
     title: '',
     content: '',
