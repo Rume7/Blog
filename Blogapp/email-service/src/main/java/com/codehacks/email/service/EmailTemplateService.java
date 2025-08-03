@@ -48,23 +48,6 @@ public class EmailTemplateService {
     }
 
     /**
-     * Generates the HTML content for subscription verification emails
-     */
-    public String generateSubscriptionVerificationEmailHtmlContent(String email, String verificationUrl) {
-        try {
-            ClassPathResource resource = new ClassPathResource("templates/subscription-verification.html");
-            String template = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            
-            return template
-                    .replace("{{email}}", email)
-                    .replace("{{verificationUrl}}", verificationUrl);
-        } catch (IOException e) {
-            log.error("Failed to load subscription verification HTML template", e);
-            return generateFallbackSubscriptionVerificationEmailContent(email, verificationUrl);
-        }
-    }
-
-    /**
      * Generates the HTML content for subscription welcome emails
      */
     public String generateSubscriptionWelcomeEmailHtmlContent(String email, String blogUrl) {
@@ -101,30 +84,6 @@ public class EmailTemplateService {
             """, 
             username != null ? username : "there",
             magicLinkUrl
-        );
-    }
-
-    /**
-     * Fallback method for generating subscription verification email content
-     */
-    private String generateFallbackSubscriptionVerificationEmailContent(String email, String verificationUrl) {
-        return String.format("""
-            Hello there,
-            
-            Thank you for subscribing to our newsletter! We're excited to keep you updated with our latest blog posts and insights.
-            
-            To complete your subscription and start receiving our weekly newsletter, please click the link below:
-            
-            %s
-            
-            This verification link will expire in 24 hours. If you don't verify your subscription within this time, you'll need to subscribe again.
-            
-            If you didn't request this subscription, you can safely ignore this email.
-            
-            Best regards,
-            The BlogApp Team
-            """, 
-            verificationUrl
         );
     }
 

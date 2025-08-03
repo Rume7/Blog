@@ -44,30 +44,6 @@ public class EmailServiceClient {
     }
 
     /**
-     * Send subscription verification email via HTTP call to email service
-     */
-    public void sendSubscriptionVerificationEmail(String email, String verificationUrl) {
-        String url = emailServiceBaseUrl + "/api/v1/email/subscription/verification";
-        
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        
-        String requestBody = String.format("email=%s&verificationUrl=%s", 
-                java.net.URLEncoder.encode(email, java.nio.charset.StandardCharsets.UTF_8),
-                java.net.URLEncoder.encode(verificationUrl, java.nio.charset.StandardCharsets.UTF_8));
-        
-        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
-        
-        try {
-            restTemplate.postForEntity(url, entity, String.class);
-            log.info("Subscription verification email sent successfully to: {}", email);
-        } catch (Exception e) {
-            log.error("Failed to send subscription verification email to: {}", email, e);
-            throw new RuntimeException("Failed to send subscription verification email", e);
-        }
-    }
-
-    /**
      * Send subscription welcome email via HTTP call to email service
      */
     public void sendSubscriptionWelcomeEmail(String email, String blogUrl) {

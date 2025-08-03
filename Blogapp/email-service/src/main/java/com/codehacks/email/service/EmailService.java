@@ -70,34 +70,9 @@ public class EmailService {
     }
 
     /**
-     * Sends a subscription verification email
-     */
-    public void sendSubscriptionVerificationEmail(String email, String verificationUrl) {
-        try {
-            log.info("Sending subscription verification email to: {}", email);
-            
-            String htmlContent = emailTemplateService.generateSubscriptionVerificationEmailHtmlContent(email, verificationUrl);
-            
-            MimeMessagePreparator messagePreparator = mimeMessage -> {
-                MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-                messageHelper.setFrom(fromEmail);
-                messageHelper.setTo(email);
-                messageHelper.setSubject("Verify Your Newsletter Subscription - " + blogName);
-                messageHelper.setText(htmlContent, true);
-            };
-            
-            mailSender.send(messagePreparator);
-            log.info("Subscription verification email sent successfully to: {}", email);
-            
-        } catch (Exception e) {
-            log.error("Failed to send subscription verification email to: {}", email, e);
-            throw new EmailServiceException("Failed to send subscription verification email", e);
-        }
-    }
-
-    /**
      * Sends a subscription welcome email
      */
+    @Transactional
     public void sendSubscriptionWelcomeEmail(String email, String blogUrl) {
         try {
             log.info("Sending subscription welcome email to: {}", email);

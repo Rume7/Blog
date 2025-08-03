@@ -49,21 +49,6 @@ class EmailNotificationServiceImplTest {
     }
 
     @Test
-    void shouldSendVerificationEmailSuccessfully() {
-        // Given
-        doNothing().when(emailServiceClient).sendSubscriptionVerificationEmail(anyString(), anyString());
-
-        // When
-        emailNotificationService.sendVerificationEmail(testSubscription);
-
-        // Then
-        verify(emailServiceClient).sendSubscriptionVerificationEmail(
-            testSubscription.getEmail(),
-            "http://localhost:3000/verify-subscription?token=" + testSubscription.getToken()
-        );
-    }
-
-    @Test
     void shouldSendWelcomeEmailSuccessfully() {
         // Given
         doNothing().when(emailServiceClient).sendSubscriptionWelcomeEmail(anyString(), anyString());
@@ -124,20 +109,6 @@ class EmailNotificationServiceImplTest {
 
         // Then
         verify(emailServiceClient).sendMagicLinkEmail(any(MagicLinkEmailRequest.class));
-    }
-
-    @Test
-    void shouldHandleEmailServiceException() {
-        // Given
-        doThrow(new RuntimeException("Email service unavailable"))
-                .when(emailServiceClient).sendSubscriptionVerificationEmail(anyString(), anyString());
-
-        // When & Then
-        assertThatThrownBy(() -> emailNotificationService.sendVerificationEmail(testSubscription))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Failed to send verification email");
-
-        verify(emailServiceClient).sendSubscriptionVerificationEmail(anyString(), anyString());
     }
 
     @Test

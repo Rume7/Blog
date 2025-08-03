@@ -96,7 +96,6 @@ class SubscriptionIntegrationTest {
         objectMapper.findAndRegisterModules(); // Enable LocalDateTime support
         
         // Mock email service to avoid actual email sending
-        doNothing().when(emailNotificationService).sendVerificationEmail(any());
         doNothing().when(emailNotificationService).sendWelcomeEmail(any());
         doNothing().when(emailNotificationService).sendUnsubscribeConfirmationEmail(any());
         

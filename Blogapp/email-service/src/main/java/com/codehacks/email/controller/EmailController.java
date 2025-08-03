@@ -45,24 +45,6 @@ public class EmailController {
     }
 
     /**
-     * Sends a subscription verification email
-     */
-    @PostMapping("/subscription/verification")
-    public ResponseEntity<String> sendSubscriptionVerificationEmail(
-            @RequestParam String email,
-            @RequestParam String verificationUrl) {
-        try {
-            log.info("Subscription verification email request received for: {}", email);
-            emailService.sendSubscriptionVerificationEmail(email, verificationUrl);
-            return ResponseEntity.ok("Subscription verification email sent successfully");
-        } catch (Exception e) {
-            log.error("Failed to send subscription verification email", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to send subscription verification email: " + e.getMessage());
-        }
-    }
-
-    /**
      * Sends a subscription welcome email
      */
     @PostMapping("/subscription/welcome")

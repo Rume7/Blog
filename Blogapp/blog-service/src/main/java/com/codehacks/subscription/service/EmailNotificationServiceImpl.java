@@ -22,23 +22,6 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
     private String blogName;
 
     @Override
-    public void sendVerificationEmail(Subscription subscription) {
-        try {
-            log.info("Sending verification email to: {}", subscription.getEmail());
-
-            String verificationUrl = baseUrl + "/verify-subscription?token=" + subscription.getToken();
-            
-            // Use the new subscription verification email endpoint
-            emailServiceClient.sendSubscriptionVerificationEmail(subscription.getEmail(), verificationUrl);
-            
-            log.info("Verification email sent successfully to: {}", subscription.getEmail());
-        } catch (Exception e) {
-            log.error("Failed to send verification email to: {}", subscription.getEmail(), e);
-            throw new RuntimeException("Failed to send verification email", e);
-        }
-    }
-
-    @Override
     public void sendWelcomeEmail(Subscription subscription) {
         try {
             log.info("Sending welcome email to: {}", subscription.getEmail());
@@ -144,28 +127,6 @@ public class EmailNotificationServiceImpl implements EmailNotificationService {
     }
 
     // Content building methods
-    private String buildVerificationEmailContent(Subscription subscription, String verificationUrl) {
-        return String.format("""
-            Hello there,
-            
-            Thank you for subscribing to our newsletter! We're excited to keep you updated with our latest blog posts and insights.
-            
-            To complete your subscription and start receiving our weekly newsletter, please click the link below:
-            
-            %s
-            
-            This verification link will expire in 24 hours. If you don't verify your subscription within this time, you'll need to subscribe again.
-            
-            If you didn't request this subscription, you can safely ignore this email.
-            
-            Best regards,
-            The %s Team
-            """, 
-            verificationUrl,
-            blogName
-        );
-    }
-
     private String buildWelcomeEmailContent(Subscription subscription) {
         return String.format("""
             Hello there,

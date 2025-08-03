@@ -31,6 +31,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
+import org.springframework.mail.javamail.MimeMessagePreparator;
 
 @ExtendWith(MockitoExtension.class)
 class EmailServiceTest {
@@ -85,7 +86,7 @@ class EmailServiceTest {
         assertEquals("Magic link sent successfully", response.message());
         assertNotNull(response.expiresAt());
 
-        verify(mailSender).send(any(SimpleMailMessage.class));
+        verify(mailSender).send(any(MimeMessagePreparator.class));
         verify(magicLinkTokenRepository).save(any(MagicLinkToken.class));
         verify(emailTemplateService).generateMagicLinkEmailHtmlContent(anyString(), anyString());
     }
