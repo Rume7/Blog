@@ -35,6 +35,8 @@ import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -60,12 +62,20 @@ class AuthServiceTest {
     @Mock
     private CacheManager cacheManager;
 
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+
     @InjectMocks
     private AuthService authService;
 
     private User testUser;
     private UserCreateRequest validRequest;
     private LoginRequest loginRequest;
+
+    private static final String MAGIC_LINK_TOKEN_PREFIX = "magic_link:";
 
     @BeforeEach
     void setUp() {
@@ -206,19 +216,14 @@ class AuthServiceTest {
         // Given
         String token = "valid-token";
         String email = "test@example.com";
-        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                .username(email)
-                .password("")
-                .authorities(List.of(new SimpleGrantedAuthority("ROLE_USER")))
-                .build();
-
-        when(emailServiceClient.validateMagicLinkToken(token)).thenReturn(true);
-        when(emailServiceClient.getEmailFromToken(token)).thenReturn(email);
-        when(userService.findByEmail(email)).thenReturn(Optional.of(testUser));
-        when(userService.loadUserByUsername(email)).thenReturn(userDetails);
-        when(jwtService.generateToken(userDetails)).thenReturn("jwt-token");
         
-        // Mock cache for the test
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(MAGIC_LINK_TOKEN_PREFIX + token)).thenReturn(email);
+        when(userService.findByEmail(email)).thenReturn(Optional.of(testUser));
+        when(userService.loadUserByUsername(email)).thenReturn(testUser);
+        when(jwtService.generateToken(testUser)).thenReturn("jwt-token");
+        
+        // Mock cache manager
         Cache mockCache = mock(Cache.class);
         when(cacheManager.getCache("users")).thenReturn(mockCache);
 
@@ -227,12 +232,11 @@ class AuthServiceTest {
 
         // Then
         assertThat(result).isEqualTo("jwt-token");
-        verify(emailServiceClient).validateMagicLinkToken(token);
-        verify(emailServiceClient).getEmailFromToken(token);
+        verify(redisTemplate.opsForValue()).get(MAGIC_LINK_TOKEN_PREFIX + token);
+        verify(redisTemplate).delete(MAGIC_LINK_TOKEN_PREFIX + token);
         verify(userService).findByEmail(email);
         verify(userService).loadUserByUsername(email);
-        verify(jwtService).generateToken(userDetails);
-        // Note: SecurityContext is set directly by AuthService, not through our mock
+        verify(jwtService).generateToken(testUser);
     }
 
     @Test
@@ -241,8 +245,8 @@ class AuthServiceTest {
         String token = "valid-token";
         String email = "nonexistent@example.com";
         
-        when(emailServiceClient.validateMagicLinkToken(token)).thenReturn(true);
-        when(emailServiceClient.getEmailFromToken(token)).thenReturn(email);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(MAGIC_LINK_TOKEN_PREFIX + token)).thenReturn(email);
         when(userService.findByEmail(email)).thenReturn(Optional.empty());
 
         // When & Then
@@ -250,8 +254,8 @@ class AuthServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("User not found");
 
-        verify(emailServiceClient).validateMagicLinkToken(token);
-        verify(emailServiceClient).getEmailFromToken(token);
+        verify(redisTemplate.opsForValue()).get(MAGIC_LINK_TOKEN_PREFIX + token);
+        verify(redisTemplate).delete(MAGIC_LINK_TOKEN_PREFIX + token);
         verify(userService).findByEmail(email);
         verify(userService, never()).loadUserByUsername(anyString());
         verify(jwtService, never()).generateToken(any(UserDetails.class));
@@ -262,6 +266,8 @@ class AuthServiceTest {
         // Given
         String token = "invalid-token";
         
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(MAGIC_LINK_TOKEN_PREFIX + token)).thenReturn(null);
         when(emailServiceClient.validateMagicLinkToken(token)).thenReturn(false);
 
         // When & Then
@@ -269,6 +275,7 @@ class AuthServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid or expired magic link token");
 
+        verify(redisTemplate.opsForValue()).get(MAGIC_LINK_TOKEN_PREFIX + token);
         verify(emailServiceClient).validateMagicLinkToken(token);
         verify(emailServiceClient, never()).getEmailFromToken(anyString());
         verify(userService, never()).findByEmail(anyString());
@@ -279,6 +286,8 @@ class AuthServiceTest {
         // Given
         String token = "valid-token";
         
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(MAGIC_LINK_TOKEN_PREFIX + token)).thenReturn(null);
         when(emailServiceClient.validateMagicLinkToken(token)).thenReturn(true);
         when(emailServiceClient.getEmailFromToken(token)).thenReturn(null);
 
@@ -287,6 +296,7 @@ class AuthServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid magic link token");
 
+        verify(redisTemplate.opsForValue()).get(MAGIC_LINK_TOKEN_PREFIX + token);
         verify(emailServiceClient).validateMagicLinkToken(token);
         verify(emailServiceClient).getEmailFromToken(token);
         verify(userService, never()).findByEmail(anyString());

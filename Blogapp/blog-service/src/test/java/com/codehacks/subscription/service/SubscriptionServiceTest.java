@@ -73,8 +73,8 @@ class SubscriptionServiceTest {
     void shouldCreateSubscriptionSuccessfully() {
         // Given
         when(subscriptionRepository.existsByEmail(anyString())).thenReturn(false);
-        when(subscriptionRepository.save(any(Subscription.class))).thenReturn(testSubscription);
-        doNothing().when(emailNotificationService).sendVerificationEmail(any(Subscription.class));
+        when(subscriptionRepository.save(any(Subscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doNothing().when(emailNotificationService).sendWelcomeEmail(any(Subscription.class));
 
         // When
         SubscriptionResponse response = subscriptionService.createSubscription(testRequest);
@@ -82,13 +82,13 @@ class SubscriptionServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("test@example.com");
-        assertThat(response.getStatus()).isEqualTo(SubscriptionStatus.PENDING);
+        assertThat(response.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         assertThat(response.getNotificationType()).isEqualTo(NotificationType.INSTANT);
-        assertThat(response.isEmailVerified()).isFalse();
+        assertThat(response.isEmailVerified()).isTrue();
 
         verify(subscriptionRepository).existsByEmail("test@example.com");
         verify(subscriptionRepository).save(any(Subscription.class));
-        verify(emailNotificationService).sendVerificationEmail(any(Subscription.class));
+        verify(emailNotificationService).sendWelcomeEmail(any(Subscription.class));
     }
 
     @Test
@@ -103,28 +103,7 @@ class SubscriptionServiceTest {
 
         verify(subscriptionRepository).existsByEmail("test@example.com");
         verify(subscriptionRepository, never()).save(any(Subscription.class));
-        verify(emailNotificationService, never()).sendVerificationEmail(any(Subscription.class));
-    }
-
-    @Test
-    void shouldVerifySubscriptionSuccessfully() {
-        // Given
-        when(subscriptionRepository.findByToken("test-token-123")).thenReturn(Optional.of(testSubscription));
-        when(subscriptionRepository.save(any(Subscription.class))).thenReturn(testSubscription);
-        doNothing().when(emailNotificationService).sendWelcomeEmail(any(Subscription.class));
-
-        // When
-        SubscriptionResponse response = subscriptionService.verifySubscription("test-token-123");
-
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(response.getEmail()).isEqualTo("test@example.com");
-        assertThat(response.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
-        assertThat(response.isEmailVerified()).isTrue();
-
-        verify(subscriptionRepository).findByToken("test-token-123");
-        verify(subscriptionRepository).save(any(Subscription.class));
-        verify(emailNotificationService).sendWelcomeEmail(any(Subscription.class));
+        verify(emailNotificationService, never()).sendWelcomeEmail(any(Subscription.class));
     }
 
     @Test
@@ -313,8 +292,8 @@ class SubscriptionServiceTest {
     @Test
     void shouldGetStatistics() {
         // Given
-        when(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.ACTIVE)).thenReturn(10L);
-        when(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.PENDING)).thenReturn(5L);
+        when(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.ACTIVE)).thenReturn(15L);
+        when(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.PENDING)).thenReturn(0L);
         when(subscriptionRepository.countByStatusAndActiveTrue(SubscriptionStatus.INACTIVE)).thenReturn(2L);
 
         // When
@@ -322,8 +301,8 @@ class SubscriptionServiceTest {
 
         // Then
         assertThat(statistics).isNotNull();
-        assertThat(statistics.getTotalActive()).isEqualTo(10L);
-        assertThat(statistics.getTotalPending()).isEqualTo(5L);
+        assertThat(statistics.getTotalActive()).isEqualTo(15L);
+        assertThat(statistics.getTotalPending()).isEqualTo(0L);
         assertThat(statistics.getTotalInactive()).isEqualTo(2L);
         assertThat(statistics.getTotalSubscriptions()).isEqualTo(17L);
 
